@@ -1,0 +1,38 @@
+-- ==========================================================
+-- CampusSphere - Supabase PostgreSQL Schema Sync / Migration
+-- Run this in your Supabase SQL Editor:
+-- https://supabase.com/dashboard/project/iqyqmkmkddxlhcfzxuya/sql
+-- ==========================================================
+
+-- 1. Add missing columns to assignments table
+ALTER TABLE public.assignments 
+  ADD COLUMN IF NOT EXISTS group_id UUID REFERENCES public.groups(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS due_date TIMESTAMP WITH TIME ZONE;
+
+CREATE INDEX IF NOT EXISTS idx_assignments_group ON public.assignments(group_id);
+
+-- 2. Add sender_role column to messages table
+ALTER TABLE public.messages 
+  ADD COLUMN IF NOT EXISTS sender_role VARCHAR(20) NOT NULL DEFAULT 'student' CHECK (sender_role IN ('student', 'teacher'));
+
+-- 3. Create announcements table
+CREATE TABLE IF NOT EXISTS public.announcements (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  group_id UUID NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
+  teacher_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_announcements_group ON public.announcements(group_id);
+
+-- 4. Enable Supabase Realtime for announcements
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.announcements;
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
