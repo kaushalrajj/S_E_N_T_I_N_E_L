@@ -110,8 +110,8 @@ export const Login = () => {
   const isAdmin = detectedRole === 'admin';
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
-      <div style={{
+    <div className="auth-page auth-page-login" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
+      <div className="auth-card" style={{
         maxWidth: '480px', width: '100%',
         background: 'rgba(250, 232, 180, 0.55)',
         backdropFilter: 'blur(22px)', WebkitBackdropFilter: 'blur(22px)',

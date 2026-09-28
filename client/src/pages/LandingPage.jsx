@@ -393,33 +393,6 @@ export const LandingPage = () => {
         </div>
       </section>
 
-      {/* ── ARCHITECTURE SHOWCASE ── */}
-      <section className="lp-arch-section">
-        <div className="lp-section-inner">
-          <div className="lp-section-label">Technical Architecture</div>
-          <h2 className="lp-section-title">Built for Scale. Ready Today.</h2>
-
-          <div className="lp-arch-grid">
-            {[
-              { icon: Globe, title: 'Supabase PostgreSQL', desc: 'Cloud-native relational DB with RLS, FK constraints, and real-time publication on every table.', color: '#574A24' },
-              { icon: Zap, title: 'Server-Sent Events', desc: 'Zero-dependency SSE fallback ensures live updates work even without Supabase credentials configured.', color: '#80775C' },
-              { icon: Lock, title: 'Domain-Based RBAC', desc: 'JWT tokens with role claims. Email domain auto-assigns role at signup — no manual configuration needed.', color: '#3E341A' },
-              { icon: ShieldAlert, title: 'Bcrypt Password Security', desc: 'All passwords are hashed with bcrypt (saltRounds=10). Plaintext is never stored or logged.', color: '#574A24' },
-              { icon: Activity, title: 'Live Stats API', desc: 'Dedicated /api/realtime/stats endpoint aggregates live counts from the database for landing page metrics.', color: '#80775C' },
-              { icon: FileText, title: 'Multer File Uploads', desc: 'Assignment PDFs and documents are stored locally and served as static assets, with Supabase Storage ready for production.', color: '#3E341A' },
-            ].map((item, i) => (
-              <div key={i} className="lp-arch-card">
-                <div className="lp-arch-icon" style={{ color: item.color, background: 'rgba(203, 189, 147, 0.25)' }}>
-                  <item.icon size={20} />
-                </div>
-                <h3 className="lp-arch-title">{item.title}</h3>
-                <p className="lp-arch-desc">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── FOOTER ── */}
       <footer className="lp-footer">
         <div className="lp-footer-inner">
