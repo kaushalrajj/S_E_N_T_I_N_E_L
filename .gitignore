@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+
+node_modules/
+client/dist/
+server/uploads/*
+!server/uploads/.gitkeep
+
+*.log

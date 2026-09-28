@@ -1,27 +1,19 @@
 import { v2 as cloudinary } from 'cloudinary';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 // Check if credentials are validly configured
 const cloudName = process.env.CLOUDINARY_CLOUD_NAME?.trim();
 const apiKey = process.env.CLOUDINARY_API_KEY?.trim();
 const apiSecret = process.env.CLOUDINARY_API_SECRET?.trim();
-const cloudinaryUrl = process.env.CLOUDINARY_URL?.trim();
 
 const isPlaceholder = (val) => !val || val.includes('your_') || val.includes('<') || val === 'undefined';
 
 export const isCloudinaryConfigured = Boolean(
-  (cloudinaryUrl && !isPlaceholder(cloudinaryUrl)) ||
-  (cloudName && apiKey && apiSecret && !isPlaceholder(cloudName) && !isPlaceholder(apiKey) && !isPlaceholder(apiSecret))
+  cloudName && apiKey && apiSecret &&
+  !isPlaceholder(cloudName) && !isPlaceholder(apiKey) && !isPlaceholder(apiSecret)
 );
 
 // Initialize Cloudinary
-if (cloudinaryUrl && !isPlaceholder(cloudinaryUrl)) {
-  cloudinary.config({
-    cloudinary_url: cloudinaryUrl
-  });
-} else if (cloudName && apiKey && apiSecret) {
+if (isCloudinaryConfigured) {
   cloudinary.config({
     cloud_name: cloudName,
     api_key: apiKey,

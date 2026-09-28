@@ -4,18 +4,23 @@
 -- https://supabase.com/dashboard/project/iqyqmkmkddxlhcfzxuya/sql
 -- ==========================================================
 
--- 1. Add missing columns to assignments table
+-- 1. Add user profile fields used by signup and teacher availability
+ALTER TABLE public.users
+  ADD COLUMN IF NOT EXISTS stream VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS availability JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+-- 2. Add missing columns to assignments table
 ALTER TABLE public.assignments 
   ADD COLUMN IF NOT EXISTS group_id UUID REFERENCES public.groups(id) ON DELETE CASCADE,
   ADD COLUMN IF NOT EXISTS due_date TIMESTAMP WITH TIME ZONE;
 
 CREATE INDEX IF NOT EXISTS idx_assignments_group ON public.assignments(group_id);
 
--- 2. Add sender_role column to messages table
+-- 3. Add sender_role column to messages table
 ALTER TABLE public.messages 
   ADD COLUMN IF NOT EXISTS sender_role VARCHAR(20) NOT NULL DEFAULT 'student' CHECK (sender_role IN ('student', 'teacher'));
 
--- 3. Create announcements table
+-- 4. Create announcements table
 CREATE TABLE IF NOT EXISTS public.announcements (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   group_id UUID NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
@@ -27,7 +32,7 @@ CREATE TABLE IF NOT EXISTS public.announcements (
 
 CREATE INDEX IF NOT EXISTS idx_announcements_group ON public.announcements(group_id);
 
--- 4. Enable Supabase Realtime for announcements
+-- 5. Enable Supabase Realtime for announcements
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
@@ -36,3 +41,6 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN
   NULL;
 END $$;
+
+-- Refresh PostgREST so newly added columns are available to API requests
+NOTIFY pgrst, 'reload schema';

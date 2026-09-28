@@ -1,8 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { db } from '../config/db.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_campus_sphere_jwt_key_2026';
-
 export const verifyToken = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -11,7 +9,7 @@ export const verifyToken = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // Fetch up-to-date user profile
     const user = await db.users.findById(decoded.id);

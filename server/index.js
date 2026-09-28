@@ -1,19 +1,37 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import authRoutes from './routes/auth.js';
-import adminRoutes from './routes/admin.js';
-import teacherRoutes from './routes/teacher.js';
-import studentRoutes from './routes/student.js';
-import uploadRoutes from './routes/upload.js';
-import { isSupabaseConfigured, db } from './config/db.js';
-import { realtimeBus } from './config/realtime.js';
-import { isCloudinaryConfigured } from './config/cloudinary.js';
 
 dotenv.config();
 
+const requiredEnvVars = [
+  'SUPABASE_URL',
+  'SUPABASE_ANON_KEY',
+  'JWT_SECRET',
+  'CLOUDINARY_CLOUD_NAME',
+  'CLOUDINARY_API_KEY',
+  'CLOUDINARY_API_SECRET',
+  'SMTP_EMAIL',
+  'SMTP_PASS'
+];
+const missingEnvVars = requiredEnvVars.filter((name) => !process.env[name]);
+
+if (missingEnvVars.length > 0) {
+  console.warn(`[Config] Missing environment variables: ${missingEnvVars.join(', ')}`);
+}
+
+const [{ default: authRoutes }, { default: adminRoutes }, { default: teacherRoutes }, { default: studentRoutes }, { default: uploadRoutes }, { isSupabaseConfigured, db }, { realtimeBus }, { isCloudinaryConfigured }] = await Promise.all([
+  import('./routes/auth.js'),
+  import('./routes/admin.js'),
+  import('./routes/teacher.js'),
+  import('./routes/student.js'),
+  import('./routes/upload.js'),
+  import('./config/db.js'),
+  import('./config/realtime.js'),
+  import('./config/cloudinary.js')
+]);
+
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors({
@@ -23,25 +41,22 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Health check endpoint
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'online',
     timestamp: new Date().toISOString(),
     databaseMode: isSupabaseConfigured ? 'Supabase PostgreSQL' : 'Not Configured',
-    storageMode: isCloudinaryConfigured ? 'Cloudinary Cloud Storage' : 'Cloudinary Pending Configuration (needs Cloud Name & API Key in .env)'
+    storageMode: isCloudinaryConfigured ? 'Cloudinary Cloud Storage' : 'Cloudinary Pending Configuration'
   });
 });
 
-// ── Realtime SSE Stream ───────────────────────────────────────────
-// Broadcasts live database events to all connected frontend clients
+// ⚠️ SSE (may not work on Vercel)
 app.get('/api/realtime/stream', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
-  res.flushHeaders?.();
 
-// Send initial handshake
   res.write(`data: ${JSON.stringify({
     type: 'CONNECTED',
     timestamp: new Date().toISOString(),
@@ -54,7 +69,6 @@ app.get('/api/realtime/stream', (req, res) => {
 
   realtimeBus.on('change', onRealtimeChange);
 
-  // Keep-alive heartbeat every 25 seconds to prevent proxy timeout
   const heartbeat = setInterval(() => {
     res.write(`: heartbeat ${Date.now()}\n\n`);
   }, 25000);
@@ -65,7 +79,7 @@ app.get('/api/realtime/stream', (req, res) => {
   });
 });
 
-// ── Public Stats (Landing Page live counters) ─────────────────────
+// Stats
 app.get('/api/realtime/stats', async (req, res) => {
   try {
     const stats = await db.admin.getStats();
@@ -81,47 +95,36 @@ app.get('/api/realtime/stats', async (req, res) => {
   }
 });
 
-// ── API Routes ────────────────────────────────────────────────────
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/teacher', teacherRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/upload', uploadRoutes);
 
-// 404 Handler for API routes
+// 404
 app.use('/api/*', (req, res) => {
   res.status(404).json({ error: 'API route not found' });
 });
 
-// Catch-all for any unmatched routes — return a clear JSON 404
-// (Removed redirect to Vite: it caused "Cannot GET" errors when Supabase
-//  magic-link clicks landed on the backend and got bounced in a redirect loop)
 app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found', path: req.originalUrl });
 });
 
-// Global Error Handler
+// Error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled server error:', err);
   res.status(500).json({ error: 'Internal Server Error', details: err.message });
 });
 
-// ── Start Server ──────────────────────────────────────────────────
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Sentinel Server running on port ${PORT}`);
-  console.log(`📡 Health Check: http://localhost:${PORT}/api/health`);
-  console.log(`⚡ Realtime Stream: http://localhost:${PORT}/api/realtime/stream`);
-  console.log(`📊 Live Stats: http://localhost:${PORT}/api/realtime/stats`);
-  console.log(`🗄️  Database Status: ${isSupabaseConfigured ? 'Connected to Supabase' : 'Supabase Not Configured'}`);
-  console.log(`☁️  Cloudinary Storage: ${isCloudinaryConfigured ? 'Ready (Cloudinary Connected)' : 'Pending (Add CLOUDINARY_CLOUD_NAME & CLOUDINARY_API_KEY to server/.env)'}`);
-});
+// ✅ LOCAL RUN FIX (IMPORTANT)
+const PORT = process.env.PORT || 3000;
 
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`\n⚠️  Port ${PORT} is already in use!`);
-    console.error(`Another instance of the server is already running on port ${PORT}.`);
-    console.error(`Your backend is active and healthy at: http://localhost:${PORT}/api/health\n`);
-  } else {
-    console.error('Server error:', err);
-  }
-});
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running locally on port ${PORT}`);
+  });
+}
+
+// ✅ EXPORT FOR VERCEL
+export default app;

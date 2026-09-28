@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS public.users (
     email VARCHAR(255) UNIQUE NOT NULL,
     role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'teacher', 'student')),
     department VARCHAR(255),
+    stream VARCHAR(255),
+    availability JSONB NOT NULL DEFAULT '[]'::jsonb,
     password_hash TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

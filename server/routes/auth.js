@@ -6,7 +6,7 @@ import { verifyToken } from '../middleware/auth.js';
 import { sendOtpEmail } from '../services/mailService.js';
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_campus_sphere_jwt_key_2026';
+const JWT_SECRET = process.env.JWT_SECRET;
 const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 const RATE_LIMIT_MS = 30 * 1000; // 30 seconds
 
