@@ -1,5 +1,6 @@
 {
   "version": 2,
+
   "builds": [
     {
       "src": "server/api/index.js",
@@ -13,14 +14,15 @@
       }
     }
   ],
+
   "routes": [
     {
-      "src": "^/api/(.*)",
+      "src": "/api/(.*)",
       "dest": "server/api/index.js"
     },
     {
-      "src": "^(.*)",
-      "dest": "/client/dist/$1"
+      "src": "/(.*)",
+      "dest": "client/$1"
     }
   ]
 }
