@@ -15,13 +15,23 @@ const requiredEnvVars = [
   'SMTP_EMAIL',
   'SMTP_PASS'
 ];
+
 const missingEnvVars = requiredEnvVars.filter((name) => !process.env[name]);
 
 if (missingEnvVars.length > 0) {
   console.warn(`[Config] Missing environment variables: ${missingEnvVars.join(', ')}`);
 }
 
-const [{ default: authRoutes }, { default: adminRoutes }, { default: teacherRoutes }, { default: studentRoutes }, { default: uploadRoutes }, { isSupabaseConfigured, db }, { realtimeBus }, { isCloudinaryConfigured }] = await Promise.all([
+const [
+  { default: authRoutes },
+  { default: adminRoutes },
+  { default: teacherRoutes },
+  { default: studentRoutes },
+  { default: uploadRoutes },
+  { isSupabaseConfigured, db },
+  { realtimeBus },
+  { isCloudinaryConfigured }
+] = await Promise.all([
   import('./routes/auth.js'),
   import('./routes/admin.js'),
   import('./routes/teacher.js'),
@@ -36,10 +46,12 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: process.env.FRONTEND_URL || "http://localhost:5173", // ✅ fixed
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json());
 
 // Health check
@@ -52,7 +64,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// ⚠️ SSE (may not work on Vercel)
+// SSE
 app.get('/api/realtime/stream', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -118,14 +130,20 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal Server Error', details: err.message });
 });
 
-// ✅ LOCAL RUN FIX (IMPORTANT)
+// ✅ GLOBAL ERROR LOGGING (added)
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+});
+
+process.on("unhandledRejection", (err) => {
+  console.error("Unhandled Rejection:", err);
+});
+
+// ✅ FIXED: ALWAYS START SERVER (REMOVED NODE_ENV CONDITION)
 const PORT = process.env.PORT || 3000;
 
-if (process.env.NODE_ENV !== "production") {
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running locally on port ${PORT}`);
-  });
-}
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
 
-// ✅ EXPORT FOR VERCEL
 export default app;
