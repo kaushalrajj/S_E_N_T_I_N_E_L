@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { supabaseClient, isSupabaseClientConfigured } from '../config/supabase.js';
+import { API_BASE_URL } from '../api/apiClient';
 
 const RealtimeContext = createContext(null);
 
@@ -24,7 +25,7 @@ export const RealtimeProvider = ({ children }) => {
   // Fetch live stats from the public stats endpoint
   const fetchLiveStats = useCallback(async () => {
     try {
-      const res = await fetch('/api/realtime/stats');
+      const res = await fetch(`${API_BASE_URL}/realtime/stats`);
       if (res.ok) {
         const data = await res.json();
         setLiveStats(data);
@@ -52,7 +53,7 @@ export const RealtimeProvider = ({ children }) => {
     }
     isReconnectingRef.current = false;
 
-    const sse = new EventSource('/api/realtime/stream');
+    const sse = new EventSource(`${API_BASE_URL}/realtime/stream`);
     sseRef.current = sse;
 
     sse.onopen = () => {

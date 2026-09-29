@@ -1,5 +1,10 @@
-// Always use relative '/api' — works with Vite dev proxy AND production deployments
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL?.trim().replace(/\/+$/, '');
+
+if (!API_BASE_URL) {
+  throw new Error('VITE_API_URL must be configured for API requests');
+}
+
+export { API_BASE_URL };
 
 const request = async (endpoint, options = {}) => {
   const token = localStorage.getItem('campus_token');
