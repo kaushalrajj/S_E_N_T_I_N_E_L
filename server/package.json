@@ -4,10 +4,12 @@
   "description": "Role-based educational platform backend with Supabase and Express",
   "main": "index.js",
   "type": "module",
+
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js"
   },
+
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
     "bcryptjs": "^3.0.2",
@@ -18,7 +20,14 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^10.0.10",
-    "nodemon": "^3.1.14",
     "uuid": "^11.1.0"
+  },
+
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  },
+
+  "engines": {
+    "node": ">=18"
   }
 }
