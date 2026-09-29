@@ -42,5 +42,24 @@ EXCEPTION WHEN OTHERS THEN
   NULL;
 END $$;
 
--- Refresh PostgREST so newly added columns are available to API requests
+-- Persist OTP state across Vercel serverless function instances
+CREATE TABLE IF NOT EXISTS public.otp_verifications (
+  email VARCHAR(255) PRIMARY KEY,
+  otp VARCHAR(6) NOT NULL,
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  last_sent_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
+-- Persist verified signup data across Vercel serverless function instances
+CREATE TABLE IF NOT EXISTS public.verified_signup_verifications (
+  email VARCHAR(255) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  department VARCHAR(255),
+  stream VARCHAR(255),
+  availability JSONB NOT NULL DEFAULT '[]'::jsonb,
+  role VARCHAR(50) NOT NULL,
+  verified_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
+-- Refresh PostgREST after applying the schema changes
 NOTIFY pgrst, 'reload schema';

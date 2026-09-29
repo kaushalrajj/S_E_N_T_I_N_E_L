@@ -1,7 +1,7 @@
 ﻿import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { db } from '../config/db.js';
+import { db, isSupabaseConfigured, supabase } from '../config/db.js';
 import { verifyToken } from '../middleware/auth.js';
 import { sendOtpEmail } from '../services/mailService.js';
 
@@ -10,13 +10,100 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 const RATE_LIMIT_MS = 30 * 1000; // 30 seconds
 
-// In-Memory OTP Store: Map<email, { otp, expiresAt, lastSentAt }>
+// Local fallback only. Production OTP state is persisted in Supabase.
 const otpStore = new Map();
 
-// Temporary store for verified-but-not-yet-passworded signups (15 min expiry)
-// Map<email, { name, department, stream, availability, role, verifiedAt }>
+async function getOtpRecord(email) {
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase
+      .from('otp_verifications')
+      .select('email, otp, expires_at, last_sent_at')
+      .eq('email', email)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    return {
+      otp: data.otp,
+      expiresAt: new Date(data.expires_at).getTime(),
+      lastSentAt: new Date(data.last_sent_at).getTime()
+    };
+  }
+  return otpStore.get(email) || null;
+}
+
+async function saveOtpRecord(email, record) {
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase.from('otp_verifications').upsert({
+      email,
+      otp: record.otp,
+      expires_at: new Date(record.expiresAt).toISOString(),
+      last_sent_at: new Date(record.lastSentAt).toISOString()
+    });
+    if (error) throw error;
+    return;
+  }
+  otpStore.set(email, record);
+}
+
+async function deleteOtpRecord(email) {
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase.from('otp_verifications').delete().eq('email', email);
+    if (error) throw error;
+    return;
+  }
+  otpStore.delete(email);
+}
+
+// Local fallback only. Production signup state is persisted in Supabase.
 const verifiedSignupStore = new Map();
 const VERIFIED_EXPIRY_MS = 15 * 60 * 1000;
+
+async function getVerifiedSignup(email) {
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase
+      .from('verified_signup_verifications')
+      .select('email, name, department, stream, availability, role, verified_at')
+      .eq('email', email)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    return {
+      name: data.name,
+      department: data.department || '',
+      stream: data.stream || '',
+      availability: data.availability || [],
+      role: data.role,
+      verifiedAt: new Date(data.verified_at).getTime()
+    };
+  }
+  return verifiedSignupStore.get(email) || null;
+}
+
+async function saveVerifiedSignup(email, signupData) {
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase.from('verified_signup_verifications').upsert({
+      email,
+      name: signupData.name,
+      department: signupData.department,
+      stream: signupData.stream,
+      availability: signupData.availability,
+      role: signupData.role,
+      verified_at: new Date(signupData.verifiedAt).toISOString()
+    });
+    if (error) throw error;
+    return;
+  }
+  verifiedSignupStore.set(email, signupData);
+}
+
+async function deleteVerifiedSignup(email) {
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase.from('verified_signup_verifications').delete().eq('email', email);
+    if (error) throw error;
+    return;
+  }
+  verifiedSignupStore.delete(email);
+}
 
 function generateOtp() {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -54,14 +141,15 @@ router.post('/send-otp', async (req, res) => {
       }
     }
 
-    const existing = otpStore.get(normalizedEmail);
+    const existing = await getOtpRecord(normalizedEmail);
     if (existing && Date.now() - existing.lastSentAt < RATE_LIMIT_MS) {
       const remainingSec = Math.ceil((RATE_LIMIT_MS - (Date.now() - existing.lastSentAt)) / 1000);
       return res.status(429).json({ error: `Please wait ${remainingSec} seconds before requesting a new OTP.` });
     }
 
     const otp = generateOtp();
-    otpStore.set(normalizedEmail, { otp, expiresAt: Date.now() + OTP_EXPIRY_MS, lastSentAt: Date.now() });
+    const now = Date.now();
+    await saveOtpRecord(normalizedEmail, { otp, expiresAt: now + OTP_EXPIRY_MS, lastSentAt: now });
     await sendOtpEmail(normalizedEmail, otp);
     console.log(`OTP for ${normalizedEmail}: ${otp}`);
     return res.json({ message: 'OTP sent successfully', email: normalizedEmail });
@@ -78,14 +166,15 @@ router.post('/resend-otp', async (req, res) => {
     if (!email) return res.status(400).json({ error: 'Email address is required' });
 
     const normalizedEmail = email.trim().toLowerCase();
-    const existing = otpStore.get(normalizedEmail);
+    const existing = await getOtpRecord(normalizedEmail);
     if (existing && Date.now() - existing.lastSentAt < RATE_LIMIT_MS) {
       const remainingSec = Math.ceil((RATE_LIMIT_MS - (Date.now() - existing.lastSentAt)) / 1000);
       return res.status(429).json({ error: `Please wait ${remainingSec} seconds before requesting a new OTP.` });
     }
 
     const otp = generateOtp();
-    otpStore.set(normalizedEmail, { otp, expiresAt: Date.now() + OTP_EXPIRY_MS, lastSentAt: Date.now() });
+    const now = Date.now();
+    await saveOtpRecord(normalizedEmail, { otp, expiresAt: now + OTP_EXPIRY_MS, lastSentAt: now });
     await sendOtpEmail(normalizedEmail, otp);
     console.log(`OTP for ${normalizedEmail}: ${otp}`);
     return res.json({ message: 'OTP resent successfully', email: normalizedEmail });
@@ -105,18 +194,18 @@ router.post('/verify-otp', async (req, res) => {
     if (!email || !otp) return res.status(400).json({ error: 'Email and OTP are required' });
 
     const normalizedEmail = email.trim().toLowerCase();
-    const record = otpStore.get(normalizedEmail);
+    const record = await getOtpRecord(normalizedEmail);
 
     if (!record) return res.status(400).json({ error: 'OTP not found. Please click "Send OTP" first.' });
     if (Date.now() > record.expiresAt) {
-      otpStore.delete(normalizedEmail);
+      await deleteOtpRecord(normalizedEmail);
       return res.status(400).json({ error: 'OTP has expired. Please request a new verification code.' });
     }
     if (record.otp !== String(otp).trim()) {
       return res.status(400).json({ error: 'Invalid OTP code. Please check your inbox and try again.' });
     }
 
-    otpStore.delete(normalizedEmail);
+    await deleteOtpRecord(normalizedEmail);
     const role = extractRoleFromEmail(normalizedEmail);
 
     if (forLogin) {
@@ -130,7 +219,7 @@ router.post('/verify-otp', async (req, res) => {
 
     } else {
       // SIGNUP — store profile; client must call /set-password next
-      verifiedSignupStore.set(normalizedEmail, {
+      await saveVerifiedSignup(normalizedEmail, {
         name: name || normalizedEmail.split('@')[0],
         department: department || '',
         stream: stream || '',
@@ -159,19 +248,19 @@ router.post('/set-password', async (req, res) => {
     if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters long' });
 
     const normalizedEmail = email.trim().toLowerCase();
-    const signupData = verifiedSignupStore.get(normalizedEmail);
+    const signupData = await getVerifiedSignup(normalizedEmail);
 
     if (!signupData) {
       return res.status(400).json({ error: 'Email verification not found or expired. Please restart the signup process.' });
     }
     if (Date.now() - signupData.verifiedAt > VERIFIED_EXPIRY_MS) {
-      verifiedSignupStore.delete(normalizedEmail);
+      await deleteVerifiedSignup(normalizedEmail);
       return res.status(400).json({ error: 'Verification session expired. Please restart the signup process.' });
     }
 
     const existing = await db.users.findByEmail(normalizedEmail);
     if (existing) {
-      verifiedSignupStore.delete(normalizedEmail);
+      await deleteVerifiedSignup(normalizedEmail);
       return res.status(409).json({ error: 'An account with this email already exists. Please log in instead.' });
     }
 
@@ -186,7 +275,7 @@ router.post('/set-password', async (req, res) => {
       password_hash
     });
 
-    verifiedSignupStore.delete(normalizedEmail);
+    await deleteVerifiedSignup(normalizedEmail);
 
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
     const { password_hash: _, ...safeUser } = user;

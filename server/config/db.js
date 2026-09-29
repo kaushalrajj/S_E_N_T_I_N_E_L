@@ -137,6 +137,10 @@ function formatMessageRecord(m) {
   };
 }
 
+function isMissingMessageSenderRoleError(error) {
+  return error?.message?.includes("'sender_role' column");
+}
+
 // Database API Adapter (Supabase with In-Memory Fallback)
 export const db = {
   users: {
@@ -830,9 +834,37 @@ export const db = {
         created_at: new Date().toISOString()
       };
       if (isSupabaseConfigured && supabase) {
+        const legacyPayload = {
+          id: newMsg.id,
+          student_id: newMsg.student_id,
+          teacher_id: newMsg.teacher_id,
+          message: role === 'teacher' ? `[ROLE:teacher]${message}` : `[ROLE:student]${message}`,
+          created_at: newMsg.created_at
+        };
+
+        if (!schemaCapabilities.hasMessageSenderRole) {
+          const { data, error } = await supabase
+            .from('messages')
+            .insert([legacyPayload])
+            .select('id, student_id, teacher_id, message, created_at')
+            .single();
+          if (error) throw error;
+          return formatMessageRecord(data);
+        }
+
         const { data, error } = await supabase.from('messages').insert([newMsg]).select().single();
-        if (error) throw error;
-        return formatMessageRecord(data);
+        if (!error) return formatMessageRecord(data);
+
+        if (!isMissingMessageSenderRoleError(error)) throw error;
+        schemaCapabilities.hasMessageSenderRole = false;
+
+        const { data: legacyData, error: legacyError } = await supabase
+          .from('messages')
+          .insert([legacyPayload])
+          .select('id, student_id, teacher_id, message, created_at')
+          .single();
+        if (legacyError) throw legacyError;
+        return formatMessageRecord(legacyData);
       }
       inMemoryData.messages.push(newMsg);
       return formatMessageRecord(newMsg);

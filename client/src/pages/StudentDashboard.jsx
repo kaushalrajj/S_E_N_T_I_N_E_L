@@ -271,7 +271,7 @@ export const StudentDashboard = () => {
     <div className="app-container">
       <Navbar />
 
-      <main style={{ maxWidth: '1280px', width: '100%', margin: '0 auto', padding: '2rem 1.5rem' }}>
+      <main className="dashboard-main student-dashboard" style={{ maxWidth: '1280px', width: '100%', margin: '0 auto', padding: '2rem 1.5rem' }}>
         {/* Header */}
         <div className="page-header" style={{ marginBottom: '1.5rem' }}>
           <div>

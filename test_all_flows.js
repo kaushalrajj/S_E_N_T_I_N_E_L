@@ -138,7 +138,12 @@ const runTests = async () => {
         message: 'Hello Professor, are the office hours held in room 402 this week?'
       })
     }).then(r => r.json());
-    assert(messageRes.record && messageRes.record.student_id === studentId, 'Student message successfully delivered to teacher');
+    assert(
+      messageRes.record
+        && messageRes.record.student_id === studentId
+        && messageRes.record.sender_role === 'student',
+      'Student message successfully delivered to teacher'
+    );
 
     // 8. Teacher views student messages
     const teacherInbox = await fetch(`${BASE_URL}/teacher/messages`, {

@@ -19,7 +19,26 @@ CREATE TABLE IF NOT EXISTS public.users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 2. COMPLAINTS / ADMIN-ASSIGNED TASKS TABLE
+-- 2. OTP VERIFICATION STATE
+CREATE TABLE IF NOT EXISTS public.otp_verifications (
+    email VARCHAR(255) PRIMARY KEY,
+    otp VARCHAR(6) NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    last_sent_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
+-- 3. VERIFIED SIGNUP STATE
+CREATE TABLE IF NOT EXISTS public.verified_signup_verifications (
+    email VARCHAR(255) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    department VARCHAR(255),
+    stream VARCHAR(255),
+    availability JSONB NOT NULL DEFAULT '[]'::jsonb,
+    role VARCHAR(50) NOT NULL,
+    verified_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
+-- 4. COMPLAINTS / ADMIN-ASSIGNED TASKS TABLE
 CREATE TABLE IF NOT EXISTS public.complaints (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     student_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,

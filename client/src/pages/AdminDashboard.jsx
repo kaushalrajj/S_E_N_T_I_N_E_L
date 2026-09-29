@@ -165,7 +165,7 @@ export const AdminDashboard = () => {
     <div className="app-container">
       <Navbar />
 
-      <main style={{ maxWidth: '1200px', width: '100%', margin: '0 auto', padding: '2rem 1.5rem' }}>
+      <main className="dashboard-main admin-dashboard" style={{ maxWidth: '1200px', width: '100%', margin: '0 auto', padding: '2rem 1.5rem' }}>
         {/* Header */}
         <div className="page-header">
           <div>
@@ -356,21 +356,21 @@ export const AdminDashboard = () => {
                   {complaints.map((c) => (
                     <tr key={c.id}>
                       <td style={{ maxWidth: '280px' }}>
-                        <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.2rem' }}>
+                        <div className="complaint-title" style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.2rem' }}>
                           {c.title}
                         </div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                        <div className="complaint-description" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                           {c.description}
                         </div>
                       </td>
                       <td>
-                        <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                        <div className="complaint-student" style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
                           {c.student?.name || 'Student'}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        <div className="complaint-meta" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                           {c.student?.department || 'Department N/A'}
                         </div>
-                        <div style={{ fontSize: '0.72rem', color: '#80775C' }}>
+                        <div className="complaint-meta" style={{ fontSize: '0.72rem', color: '#80775C' }}>
                           {c.student?.email}
                         </div>
                       </td>
@@ -384,21 +384,21 @@ export const AdminDashboard = () => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                             <GraduationCap size={15} color="#80775C" />
                             <div>
-                              <div style={{ fontSize: '0.85rem', color: '#574A24', fontWeight: 600 }}>
+                              <div className="complaint-faculty" style={{ fontSize: '0.85rem', color: '#574A24', fontWeight: 600 }}>
                                 {c.teacher.name}
                               </div>
-                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                              <div className="complaint-meta" style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                                 {c.teacher.email}
                               </div>
                             </div>
                           </div>
                         ) : (
-                          <span style={{ fontSize: '0.8rem', color: '#80775C', fontStyle: 'italic' }}>
+                          <span className="complaint-unassigned" style={{ fontSize: '0.8rem', color: '#80775C', fontStyle: 'italic' }}>
                             Unassigned
                           </span>
                         )}
                       </td>
-                      <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                      <td className="complaint-date" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                         {new Date(c.created_at).toLocaleDateString(undefined, {
                           month: 'short',
                           day: 'numeric',
