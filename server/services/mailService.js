@@ -10,8 +10,8 @@ import nodemailer from 'nodemailer';
 export async function sendOtpEmail(toEmail, otp) {
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: Number(process.env.SMTP_PORT || 465),
-    secure: String(process.env.SMTP_SECURE || 'true') === 'true',
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: String(process.env.SMTP_SECURE || 'false') === 'true',
     family: 4,
     connectionTimeout: 15000,
     greetingTimeout: 15000,
