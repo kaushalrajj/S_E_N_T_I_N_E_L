@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import dns from 'node:dns/promises';
 
 /**
  * Send 6-digit OTP email using Nodemailer with Gmail SMTP
@@ -8,11 +9,23 @@ import nodemailer from 'nodemailer';
  * @param {string} otp 
  */
 export async function sendOtpEmail(toEmail, otp) {
+  const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+  let smtpAddress = smtpHost;
+
+  try {
+    [smtpAddress] = await dns.resolve4(smtpHost);
+  } catch (error) {
+    console.warn(`[Mail] IPv4 DNS lookup failed for ${smtpHost}: ${error.message}`);
+  }
+
   const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    host: smtpAddress,
     port: Number(process.env.SMTP_PORT || 587),
     secure: String(process.env.SMTP_SECURE || 'false') === 'true',
     family: 4,
+    tls: {
+      servername: smtpHost
+    },
     connectionTimeout: 15000,
     greetingTimeout: 15000,
     socketTimeout: 20000,
