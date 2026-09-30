@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../api/apiClient.js';
 import { useRealtime } from '../context/RealtimeContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
@@ -405,7 +406,7 @@ export const LandingPage = () => {
             <span className="lp-footer-sep">·</span>
             <span>Database: {liveStats?.isSupabaseConfigured ? '🟢 Supabase Cloud' : '🟡 Local In-Memory'}</span>
             <span className="lp-footer-sep">·</span>
-            <span>API: <a href="http://localhost:5000/api/health" target="_blank" rel="noreferrer">Health Check</a></span>
+            <span>API: <a href={`${API_BASE_URL}/health`} target="_blank" rel="noreferrer">Health Check</a></span>
           </div>
         </div>
       </footer>

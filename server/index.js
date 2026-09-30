@@ -6,7 +6,6 @@ dotenv.config();
 
 const requiredEnvVars = [
   'SUPABASE_URL',
-  'SUPABASE_ANON_KEY',
   'JWT_SECRET',
   'FRONTEND_URL',
   'CLOUDINARY_CLOUD_NAME',
@@ -17,6 +16,9 @@ const requiredEnvVars = [
 ];
 
 const missingEnvVars = requiredEnvVars.filter((name) => !process.env[name]);
+if (!process.env.SUPABASE_ANON_KEY && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  missingEnvVars.push('SUPABASE_ANON_KEY or SUPABASE_SERVICE_ROLE_KEY');
+}
 
 if (missingEnvVars.length > 0) {
   console.warn(`[Config] Missing environment variables: ${missingEnvVars.join(', ')}`);
@@ -46,7 +48,22 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:5173", // ✅ fixed
+  origin: (origin, callback) => {
+    const configuredOrigins = (process.env.FRONTEND_URL || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+    const localDevelopmentOrigin = /^http:\/\/localhost:\d+$/;
+    const allowedOrigins = new Set([
+      'http://localhost:5173',
+      'http://localhost:5174',
+      ...configuredOrigins
+    ]);
+    if (!origin || allowedOrigins.has(origin) || localDevelopmentOrigin.test(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS origin not allowed: ${origin}`));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']

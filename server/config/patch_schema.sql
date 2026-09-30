@@ -42,13 +42,67 @@ EXCEPTION WHEN OTHERS THEN
   NULL;
 END $$;
 
--- Persist OTP state across Vercel serverless function instances
+-- Persist OTP state across Vercel serverless function instances.
+-- This also upgrades the previous email-primary-key/last_sent_at shape.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE TABLE IF NOT EXISTS public.otp_verifications (
-  email VARCHAR(255) PRIMARY KEY,
-  otp VARCHAR(6) NOT NULL,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT NOT NULL UNIQUE,
+  otp TEXT NOT NULL,
   expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  last_sent_at TIMESTAMP WITH TIME ZONE NOT NULL
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+ALTER TABLE public.otp_verifications
+  ADD COLUMN IF NOT EXISTS id UUID DEFAULT gen_random_uuid(),
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'otp_verifications'
+      AND column_name = 'last_sent_at'
+  ) THEN
+    UPDATE public.otp_verifications
+    SET created_at = COALESCE(created_at, last_sent_at, NOW())
+    WHERE created_at IS NULL;
+  ELSE
+    UPDATE public.otp_verifications
+    SET created_at = NOW()
+    WHERE created_at IS NULL;
+  END IF;
+END $$;
+
+ALTER TABLE public.otp_verifications
+  ALTER COLUMN id SET NOT NULL,
+  ALTER COLUMN created_at SET DEFAULT NOW();
+
+DO $$
+DECLARE
+  primary_key_name TEXT;
+BEGIN
+  SELECT constraint_name INTO primary_key_name
+  FROM information_schema.table_constraints
+  WHERE table_schema = 'public'
+    AND table_name = 'otp_verifications'
+    AND constraint_type = 'PRIMARY KEY';
+
+  IF primary_key_name IS NOT NULL THEN
+    EXECUTE format('ALTER TABLE public.otp_verifications DROP CONSTRAINT %I', primary_key_name);
+  END IF;
+END $$;
+
+ALTER TABLE public.otp_verifications
+  ADD CONSTRAINT otp_verifications_pkey PRIMARY KEY (id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS otp_verifications_email_key
+  ON public.otp_verifications(email);
+
+ALTER TABLE public.otp_verifications
+  DROP COLUMN IF EXISTS last_sent_at;
 
 -- Persist verified signup data across Vercel serverless function instances
 CREATE TABLE IF NOT EXISTS public.verified_signup_verifications (

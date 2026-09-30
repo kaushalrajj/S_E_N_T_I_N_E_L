@@ -2,11 +2,11 @@ import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
 const missingSupabaseEnv = [
   ['SUPABASE_URL', supabaseUrl],
-  ['SUPABASE_ANON_KEY', supabaseKey]
+  ['SUPABASE_ANON_KEY or SUPABASE_SERVICE_ROLE_KEY', supabaseKey]
 ].filter(([, value]) => !value).map(([name]) => name);
 
 if (missingSupabaseEnv.length > 0) {

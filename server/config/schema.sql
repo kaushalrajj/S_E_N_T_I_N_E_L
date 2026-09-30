@@ -5,6 +5,7 @@
 
 -- Enable UUID extension if not already enabled
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- 1. USERS TABLE
 CREATE TABLE IF NOT EXISTS public.users (
@@ -21,10 +22,11 @@ CREATE TABLE IF NOT EXISTS public.users (
 
 -- 2. OTP VERIFICATION STATE
 CREATE TABLE IF NOT EXISTS public.otp_verifications (
-    email VARCHAR(255) PRIMARY KEY,
-    otp VARCHAR(6) NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT NOT NULL UNIQUE,
+    otp TEXT NOT NULL,
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    last_sent_at TIMESTAMP WITH TIME ZONE NOT NULL
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- 3. VERIFIED SIGNUP STATE

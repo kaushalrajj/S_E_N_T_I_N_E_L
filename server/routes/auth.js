@@ -17,7 +17,7 @@ async function getOtpRecord(email) {
   if (isSupabaseConfigured && supabase) {
     const { data, error } = await supabase
       .from('otp_verifications')
-      .select('email, otp, expires_at, last_sent_at')
+      .select('email, otp, expires_at, created_at')
       .eq('email', email)
       .maybeSingle();
     if (error) throw error;
@@ -25,7 +25,7 @@ async function getOtpRecord(email) {
     return {
       otp: data.otp,
       expiresAt: new Date(data.expires_at).getTime(),
-      lastSentAt: new Date(data.last_sent_at).getTime()
+      lastSentAt: new Date(data.created_at).getTime()
     };
   }
   return otpStore.get(email) || null;
@@ -33,11 +33,16 @@ async function getOtpRecord(email) {
 
 async function saveOtpRecord(email, record) {
   if (isSupabaseConfigured && supabase) {
-    const { error } = await supabase.from('otp_verifications').upsert({
+    const { error: deleteError } = await supabase
+      .from('otp_verifications')
+      .delete()
+      .eq('email', email);
+    if (deleteError) throw deleteError;
+
+    const { error } = await supabase.from('otp_verifications').insert({
       email,
       otp: record.otp,
-      expires_at: new Date(record.expiresAt).toISOString(),
-      last_sent_at: new Date(record.lastSentAt).toISOString()
+      expires_at: new Date(record.expiresAt).toISOString()
     });
     if (error) throw error;
     return;
@@ -133,6 +138,7 @@ router.post('/send-otp', async (req, res) => {
     if (!email) return res.status(400).json({ error: 'Email address is required' });
 
     const normalizedEmail = email.trim().toLowerCase();
+    console.info(`[Auth] OTP request started for ${normalizedEmail} (login=${Boolean(forLogin)})`);
 
     if (forLogin) {
       const existingUser = await db.users.findByEmail(normalizedEmail);
@@ -151,7 +157,7 @@ router.post('/send-otp', async (req, res) => {
     const now = Date.now();
     await saveOtpRecord(normalizedEmail, { otp, expiresAt: now + OTP_EXPIRY_MS, lastSentAt: now });
     await sendOtpEmail(normalizedEmail, otp);
-    console.log(`OTP for ${normalizedEmail}: ${otp}`);
+    console.info(`[Auth] OTP email sent for ${normalizedEmail}`);
     return res.json({ message: 'OTP sent successfully', email: normalizedEmail });
   } catch (error) {
     console.error('[Auth] send-otp error:', error);
@@ -166,6 +172,7 @@ router.post('/resend-otp', async (req, res) => {
     if (!email) return res.status(400).json({ error: 'Email address is required' });
 
     const normalizedEmail = email.trim().toLowerCase();
+    console.info(`[Auth] OTP resend started for ${normalizedEmail}`);
     const existing = await getOtpRecord(normalizedEmail);
     if (existing && Date.now() - existing.lastSentAt < RATE_LIMIT_MS) {
       const remainingSec = Math.ceil((RATE_LIMIT_MS - (Date.now() - existing.lastSentAt)) / 1000);
@@ -176,7 +183,7 @@ router.post('/resend-otp', async (req, res) => {
     const now = Date.now();
     await saveOtpRecord(normalizedEmail, { otp, expiresAt: now + OTP_EXPIRY_MS, lastSentAt: now });
     await sendOtpEmail(normalizedEmail, otp);
-    console.log(`OTP for ${normalizedEmail}: ${otp}`);
+    console.info(`[Auth] OTP resend email sent for ${normalizedEmail}`);
     return res.json({ message: 'OTP resent successfully', email: normalizedEmail });
   } catch (error) {
     console.error('[Auth] resend-otp error:', error);
@@ -194,6 +201,7 @@ router.post('/verify-otp', async (req, res) => {
     if (!email || !otp) return res.status(400).json({ error: 'Email and OTP are required' });
 
     const normalizedEmail = email.trim().toLowerCase();
+    console.info(`[Auth] OTP verification started for ${normalizedEmail} (login=${Boolean(forLogin)})`);
     const record = await getOtpRecord(normalizedEmail);
 
     if (!record) return res.status(400).json({ error: 'OTP not found. Please click "Send OTP" first.' });
@@ -206,6 +214,7 @@ router.post('/verify-otp', async (req, res) => {
     }
 
     await deleteOtpRecord(normalizedEmail);
+    console.info(`[Auth] OTP verified and invalidated for ${normalizedEmail}`);
     const role = extractRoleFromEmail(normalizedEmail);
 
     if (forLogin) {
