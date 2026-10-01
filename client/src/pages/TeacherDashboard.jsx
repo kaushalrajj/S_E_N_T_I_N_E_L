@@ -1,15 +1,8 @@
-<<<<<<< HEAD
 import React, { useState, useEffect, useRef } from "react";
 import { Navbar } from "../components/Navbar";
 import { api } from "../api/apiClient";
 import { useRealtime } from "../context/RealtimeContext";
-=======
-import React, { useState, useEffect } from 'react';
-import { Navbar } from '../components/Navbar';
-import { api } from '../api/apiClient';
-import { useRealtime } from '../context/RealtimeContext';
-import { TeacherAssignmentSubmissions } from '../components/TeacherAssignmentSubmissions';
->>>>>>> origin/feature/assignment-submission
+import { TeacherAssignmentSubmissions } from "../components/TeacherAssignmentSubmissions";
 import {
   GraduationCap,
   Users,
@@ -520,29 +513,17 @@ export const TeacherDashboard = () => {
     try {
       if (groupAssignFile) {
         const formData = new FormData();
-<<<<<<< HEAD
         formData.append("title", groupAssignTitle);
         formData.append("description", groupAssignDesc);
-        formData.append("due_date", groupAssignDueDate);
+  formData.append("due_date", groupAssignDueDate ? new Date(groupAssignDueDate).toISOString() : "");
         formData.append("file", groupAssignFile);
-=======
-        formData.append('title', groupAssignTitle);
-        formData.append('description', groupAssignDesc);
-        formData.append('due_date', groupAssignDueDate ? new Date(groupAssignDueDate).toISOString() : '');
-        formData.append('file', groupAssignFile);
->>>>>>> origin/feature/assignment-submission
         await api.teacher.createGroupAssignment(activeGroupDetail.id, formData);
       } else {
         await api.teacher.createGroupAssignment(activeGroupDetail.id, {
           title: groupAssignTitle,
           description: groupAssignDesc,
-<<<<<<< HEAD
-          due_date: groupAssignDueDate || null,
-          file_url: groupAssignFileUrl || null,
-=======
           due_date: groupAssignDueDate ? new Date(groupAssignDueDate).toISOString() : null,
-          file_url: groupAssignFileUrl || null
->>>>>>> origin/feature/assignment-submission
+          file_url: groupAssignFileUrl || null,
         });
       }
 
@@ -590,34 +571,21 @@ export const TeacherDashboard = () => {
     try {
       if (assignmentFile) {
         const formData = new FormData();
-<<<<<<< HEAD
         formData.append("title", assignmentTitle);
         formData.append("description", assignmentDesc);
         formData.append("group_id", assignmentGroupId);
-        formData.append("due_date", assignmentDueDate);
+        formData.append("due_date", assignmentDueDate ? new Date(assignmentDueDate).toISOString() : "");
         formData.append("file", assignmentFile);
-=======
-        formData.append('title', assignmentTitle);
-        formData.append('description', assignmentDesc);
-        formData.append('group_id', assignmentGroupId);
-        formData.append('due_date', assignmentDueDate ? new Date(assignmentDueDate).toISOString() : '');
-        formData.append('file', assignmentFile);
->>>>>>> origin/feature/assignment-submission
         await api.teacher.createAssignment(formData);
       } else {
         await api.teacher.createAssignment({
           title: assignmentTitle,
           description: assignmentDesc,
           group_id: assignmentGroupId || null,
-<<<<<<< HEAD
-          due_date: assignmentDueDate || null,
+          due_date: assignmentDueDate ? new Date(assignmentDueDate).toISOString() : null,
           file_url:
             assignmentFileUrl ||
             "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-=======
-          due_date: assignmentDueDate ? new Date(assignmentDueDate).toISOString() : null,
-          file_url: assignmentFileUrl || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
->>>>>>> origin/feature/assignment-submission
         });
       }
 
@@ -1448,12 +1416,8 @@ export const TeacherDashboard = () => {
                                     }}
                                   >
                                     <Clock size={11} />
-<<<<<<< HEAD
-                                    {isOverdue ? "OVERDUE" : "DUE"}:{" "}
-                                    {new Date(a.due_date).toLocaleDateString()}
-=======
-                                    {isOverdue ? 'CLOSED' : 'DUE'}: {new Date(a.due_date).toLocaleString()}
->>>>>>> origin/feature/assignment-submission
+                                    {isOverdue ? "CLOSED" : "DUE"}:{" "}
+                                    {new Date(a.due_date).toLocaleString()}
                                   </span>
                                 )}
                               </div>
@@ -2259,12 +2223,8 @@ export const TeacherDashboard = () => {
                             }}
                           >
                             <Clock size={11} />
-<<<<<<< HEAD
-                            {isOverdue ? "OVERDUE" : "DUE"}:{" "}
-                            {new Date(a.due_date).toLocaleDateString()}
-=======
-                            {isOverdue ? 'CLOSED' : 'DUE'}: {new Date(a.due_date).toLocaleString()}
->>>>>>> origin/feature/assignment-submission
+                            {isOverdue ? "CLOSED" : "DUE"}:{" "}
+                            {new Date(a.due_date).toLocaleString()}
                           </span>
                         )}
                       </div>

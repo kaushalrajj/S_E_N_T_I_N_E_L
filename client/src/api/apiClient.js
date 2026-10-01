@@ -169,13 +169,9 @@ export const api = {
         method: "POST",
         body: JSON.stringify(data),
       }),
-<<<<<<< HEAD
     getAssignments: () => request("/teacher/assignments"),
-=======
-    getAssignments: () => request('/teacher/assignments'),
     getAssignmentSubmissions: (assignmentId) => request(`/teacher/assignments/${assignmentId}/submissions`),
     getSubmissionFile: (assignmentId, studentId) => request(`/teacher/assignments/${assignmentId}/submissions/${studentId}/file`),
->>>>>>> origin/feature/assignment-submission
     createAssignment: (assignmentData) => {
       if (assignmentData instanceof FormData) {
         return request("/teacher/assignments", {
@@ -221,31 +217,22 @@ export const api = {
         `/student/groups${search ? `?search=${encodeURIComponent(search)}` : ""}`,
       ),
     getGroupDetail: (groupId) => request(`/student/groups/${groupId}`),
-<<<<<<< HEAD
     getGroupAssignments: (groupId) =>
       request(`/student/groups/${groupId}/assignments`),
     getGroupAnnouncements: (groupId) =>
       request(`/student/groups/${groupId}/announcements`),
     getAssignments: () => request("/student/assignments"),
-    getMarks: () => request("/student/marks"),
-    getTeachers: (stream = "", search = "") =>
-      request(
-        `/student/teachers?stream=${encodeURIComponent(stream)}&search=${encodeURIComponent(search)}`,
-      ),
-=======
-    getGroupAssignments: (groupId) => request(`/student/groups/${groupId}/assignments`),
-    getGroupAnnouncements: (groupId) => request(`/student/groups/${groupId}/announcements`),
-    getAssignments: () => request('/student/assignments'),
     submitAssignment: (assignmentId, file) => {
       const body = new FormData();
       body.append('file', file);
       return request(`/student/assignments/${assignmentId}/submission`, { method: 'POST', body });
     },
     getSubmissionFile: (assignmentId) => request(`/student/assignments/${assignmentId}/submission/file`),
-    getMarks: () => request('/student/marks'),
-    getTeachers: (stream = '', search = '') =>
-      request(`/student/teachers?stream=${encodeURIComponent(stream)}&search=${encodeURIComponent(search)}`),
->>>>>>> origin/feature/assignment-submission
+    getMarks: () => request("/student/marks"),
+    getTeachers: (stream = "", search = "") =>
+      request(
+        `/student/teachers?stream=${encodeURIComponent(stream)}&search=${encodeURIComponent(search)}`,
+      ),
     sendMessage: (data) =>
       request("/student/messages", {
         method: "POST",
