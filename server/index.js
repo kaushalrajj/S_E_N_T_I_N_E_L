@@ -49,17 +49,24 @@ const app = express();
 // Middleware
 app.use(cors({
   origin: (origin, callback) => {
+    const normalizeOrigin = (value) => value.trim().replace(/\/+$/, '');
     const configuredOrigins = (process.env.FRONTEND_URL || '')
       .split(',')
-      .map((value) => value.trim())
+      .map(normalizeOrigin)
       .filter(Boolean);
     const localDevelopmentOrigin = /^http:\/\/localhost:\d+$/;
+    const sentinelVercelOrigin = /^https:\/\/s-e-n-t-i-n-e-l(?:-[a-z0-9-]+)*\.vercel\.app$/i;
     const allowedOrigins = new Set([
       'http://localhost:5173',
       'http://localhost:5174',
       ...configuredOrigins
     ]);
-    if (!origin || allowedOrigins.has(origin) || localDevelopmentOrigin.test(origin)) {
+    if (
+      !origin ||
+      allowedOrigins.has(normalizeOrigin(origin)) ||
+      localDevelopmentOrigin.test(origin) ||
+      sentinelVercelOrigin.test(origin)
+    ) {
       return callback(null, true);
     }
     return callback(new Error(`CORS origin not allowed: ${origin}`));
