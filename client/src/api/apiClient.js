@@ -1,4 +1,9 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL?.trim().replace(/\/+$/, "");
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+const isLocalApiUrl = configuredApiUrl && /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?\b/i.test(configuredApiUrl);
+const API_BASE_URL = (import.meta.env.PROD && isLocalApiUrl
+  ? "/api"
+  : configuredApiUrl || (import.meta.env.PROD ? "/api" : "")
+).replace(/\/+$/, "");
 
 if (!API_BASE_URL) {
   throw new Error("VITE_API_URL must be configured for API requests");
