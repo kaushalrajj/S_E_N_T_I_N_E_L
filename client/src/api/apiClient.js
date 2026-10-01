@@ -153,6 +153,8 @@ export const api = {
         body: JSON.stringify(data)
       }),
     getAssignments: () => request('/teacher/assignments'),
+    getAssignmentSubmissions: (assignmentId) => request(`/teacher/assignments/${assignmentId}/submissions`),
+    getSubmissionFile: (assignmentId, studentId) => request(`/teacher/assignments/${assignmentId}/submissions/${studentId}/file`),
     createAssignment: (assignmentData) => {
       if (assignmentData instanceof FormData) {
         return request('/teacher/assignments', {
@@ -199,6 +201,12 @@ export const api = {
     getGroupAssignments: (groupId) => request(`/student/groups/${groupId}/assignments`),
     getGroupAnnouncements: (groupId) => request(`/student/groups/${groupId}/announcements`),
     getAssignments: () => request('/student/assignments'),
+    submitAssignment: (assignmentId, file) => {
+      const body = new FormData();
+      body.append('file', file);
+      return request(`/student/assignments/${assignmentId}/submission`, { method: 'POST', body });
+    },
+    getSubmissionFile: (assignmentId) => request(`/student/assignments/${assignmentId}/submission/file`),
     getMarks: () => request('/student/marks'),
     getTeachers: (stream = '', search = '') =>
       request(`/student/teachers?stream=${encodeURIComponent(stream)}&search=${encodeURIComponent(search)}`),

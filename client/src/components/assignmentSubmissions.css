@@ -1,0 +1,22 @@
+.assignment-submission {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--c-sand-border);
+  border-radius: 12px;
+  background: var(--c-wheat-surface);
+  color: var(--c-umber-dark);
+  font-size: .85rem;
+  min-width: 0;
+}
+.assignment-submission p { margin: .45rem 0; overflow-wrap: anywhere; }
+.assignment-submission small { display: block; margin: .5rem 0; color: var(--c-umber); }
+.assignment-submission form { display: grid; gap: .65rem; margin-top: .75rem; }
+.assignment-submission input[type="file"] { max-width: 100%; min-width: 0; color: inherit; }
+.assignment-submission button { white-space: normal; }
+.assignment-submission button:disabled { opacity: .55; cursor: not-allowed; }
+.submission-success { color: #23633d; font-weight: 700; }
+.submission-error { color: #a32121; flex-basis: 100%; }
+.submission-filename { font-weight: 600; overflow-wrap: anywhere; }
+.submission-file-actions, .submission-roster-heading { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: .5rem; }
+.submission-roster { margin-top: .75rem; }
+.submission-student { padding: .85rem 0; border-top: 1px solid var(--c-sand-border); }

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Navbar } from '../components/Navbar';
 import { api } from '../api/apiClient';
 import { useRealtime } from '../context/RealtimeContext';
+import { TeacherAssignmentSubmissions } from '../components/TeacherAssignmentSubmissions';
 import {
   GraduationCap,
   Users,
@@ -426,14 +427,14 @@ export const TeacherDashboard = () => {
         const formData = new FormData();
         formData.append('title', groupAssignTitle);
         formData.append('description', groupAssignDesc);
-        formData.append('due_date', groupAssignDueDate);
+        formData.append('due_date', groupAssignDueDate ? new Date(groupAssignDueDate).toISOString() : '');
         formData.append('file', groupAssignFile);
         await api.teacher.createGroupAssignment(activeGroupDetail.id, formData);
       } else {
         await api.teacher.createGroupAssignment(activeGroupDetail.id, {
           title: groupAssignTitle,
           description: groupAssignDesc,
-          due_date: groupAssignDueDate || null,
+          due_date: groupAssignDueDate ? new Date(groupAssignDueDate).toISOString() : null,
           file_url: groupAssignFileUrl || null
         });
       }
@@ -482,7 +483,7 @@ export const TeacherDashboard = () => {
         formData.append('title', assignmentTitle);
         formData.append('description', assignmentDesc);
         formData.append('group_id', assignmentGroupId);
-        formData.append('due_date', assignmentDueDate);
+        formData.append('due_date', assignmentDueDate ? new Date(assignmentDueDate).toISOString() : '');
         formData.append('file', assignmentFile);
         await api.teacher.createAssignment(formData);
       } else {
@@ -490,7 +491,7 @@ export const TeacherDashboard = () => {
           title: assignmentTitle,
           description: assignmentDesc,
           group_id: assignmentGroupId || null,
-          due_date: assignmentDueDate || null,
+          due_date: assignmentDueDate ? new Date(assignmentDueDate).toISOString() : null,
           file_url: assignmentFileUrl || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
         });
       }
@@ -1012,7 +1013,7 @@ export const TeacherDashboard = () => {
                                     gap: '0.3rem'
                                   }}>
                                     <Clock size={11} />
-                                    {isOverdue ? 'OVERDUE' : 'DUE'}: {new Date(a.due_date).toLocaleDateString()}
+                                    {isOverdue ? 'CLOSED' : 'DUE'}: {new Date(a.due_date).toLocaleString()}
                                   </span>
                                 )}
                               </div>
@@ -1020,6 +1021,7 @@ export const TeacherDashboard = () => {
                               <p style={{ fontSize: '0.85rem', color: '#cbd5e1', lineHeight: 1.5, flex: 1, marginBottom: '1rem' }}>
                                 {a.description}
                               </p>
+                              <TeacherAssignmentSubmissions assignment={a} />
 
                               <div style={{
                                 display: 'flex',
@@ -1458,7 +1460,7 @@ export const TeacherDashboard = () => {
                             gap: '0.3rem'
                           }}>
                             <Clock size={11} />
-                            {isOverdue ? 'OVERDUE' : 'DUE'}: {new Date(a.due_date).toLocaleDateString()}
+                            {isOverdue ? 'CLOSED' : 'DUE'}: {new Date(a.due_date).toLocaleString()}
                           </span>
                         )}
                       </div>
@@ -1466,6 +1468,7 @@ export const TeacherDashboard = () => {
                       <p style={{ fontSize: '0.88rem', color: '#cbd5e1', lineHeight: 1.5, flex: 1, marginBottom: '1rem' }}>
                         {a.description}
                       </p>
+                      <TeacherAssignmentSubmissions assignment={a} />
 
                       <div style={{
                         display: 'flex',

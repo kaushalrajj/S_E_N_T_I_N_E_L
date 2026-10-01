@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Navbar } from '../components/Navbar';
 import { api } from '../api/apiClient';
 import { useRealtime } from '../context/RealtimeContext';
+import { StudentAssignmentSubmission } from '../components/StudentAssignmentSubmission';
 import {
   BookOpen,
   FileText,
@@ -112,7 +113,7 @@ export const StudentDashboard = () => {
       setGroupAssignments(assigns);
       setGroupAnnouncements(annos);
     } catch (err) {
-      console.error('Error fetching group content:', err);
+      setError(err.message || 'Failed to load group assignments');
     }
   };
 
@@ -220,6 +221,30 @@ export const StudentDashboard = () => {
 
   // Realtime events
   useEffect(() => {
+    if (activeTab !== 'assignments' && !(activeTab === 'groups' && activeGroupDetail)) return;
+    let cancelled = false;
+    let running = false;
+    async function refreshAssignments() {
+      if (running || document.visibilityState === 'hidden') return;
+      running = true;
+      try {
+        const result = activeTab === 'assignments'
+          ? await api.student.getAssignments()
+          : await api.student.getGroupAssignments(activeGroupDetail.id);
+        if (!cancelled) {
+          if (activeTab === 'assignments') setAllAssignments(result);
+          else setGroupAssignments(result);
+        }
+      } catch (err) {
+        if (!cancelled) setError(err.message || 'Could not refresh assignments');
+      } finally { running = false; }
+    }
+    const timer = setInterval(refreshAssignments, 15000);
+    window.addEventListener('focus', refreshAssignments);
+    return () => { cancelled = true; clearInterval(timer); window.removeEventListener('focus', refreshAssignments); };
+  }, [activeTab, activeGroupDetail?.id]);
+
+  useEffect(() => {
     if (!lastEvent) return;
     if (lastEvent.table === 'assignments' && activeTab === 'assignments') {
       fetchAllAssignments();
@@ -261,11 +286,15 @@ export const StudentDashboard = () => {
   // Calculate missed & upcoming deadlines across all assignments
   const now = new Date();
   const overdueAssignments = allAssignments.filter(
-    (a) => a.due_date && new Date(a.due_date) < now
+    (a) => !a.submission && a.due_date && new Date(a.due_date) <= now
   );
-  const upcomingAssignments = allAssignments.filter(
-    (a) => a.due_date && new Date(a.due_date) >= now
-  );
+
+  const handleAssignmentSubmitted = (assignmentId, submission) => {
+    const update = list => list.map(a => a.id === assignmentId ? { ...a, submission } : a);
+    setAllAssignments(update);
+    setGroupAssignments(update);
+    notify('Assignment submitted successfully! Your teacher can now view your PDF.');
+  };
 
   return (
     <div className="app-container">
@@ -612,7 +641,7 @@ export const StudentDashboard = () => {
                                   alignItems: 'center',
                                   gap: '0.3rem'
                                 }}>
-                                  <Clock size={11} /> DUE: {new Date(a.due_date).toLocaleDateString()}
+                                  <Clock size={11} /> DUE: {new Date(a.due_date).toLocaleString()}
                                 </span>
                               )}
                             </div>
@@ -639,6 +668,7 @@ export const StudentDashboard = () => {
                                 </a>
                               </div>
                             )}
+                            <StudentAssignmentSubmission assignment={a} onSubmitted={handleAssignmentSubmitted} onRefresh={() => fetchGroupContent(activeGroupDetail.id)} />
                           </div>
                         ))}
                       </div>
@@ -706,7 +736,7 @@ export const StudentDashboard = () => {
                     </h3>
                   </div>
                   <p style={{ fontSize: '0.85rem', color: '#574A24', margin: 0 }}>
-                    The following assignments have passed their official due dates. Coordinate with your instructor immediately.
+                    These assignments were not submitted before the deadline. Submission is now closed.
                   </p>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.75rem', marginTop: '0.5rem' }}>
@@ -722,7 +752,7 @@ export const StudentDashboard = () => {
                       >
                         <div style={{ fontWeight: 700, color: '#3E341A', fontSize: '0.9rem' }}>{a.title}</div>
                         <div style={{ fontSize: '0.75rem', color: '#574A24', fontWeight: 600, marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                          <Clock size={12} /> Was Due: {new Date(a.due_date).toLocaleDateString()}
+                          <Clock size={12} /> Was Due: {new Date(a.due_date).toLocaleString()}
                         </div>
                       </div>
                     ))}
@@ -732,15 +762,15 @@ export const StudentDashboard = () => {
 
               {/* Active Assignments */}
               <div style={{ marginBottom: '1.5rem' }}>
-                <h2 style={{ fontSize: '1.3rem', color: '#3E341A', fontWeight: 800 }}>Active Course Assignments</h2>
+                <h2 style={{ fontSize: '1.3rem', color: '#3E341A', fontWeight: 800 }}>Course Assignments & Submissions</h2>
                 <p style={{ fontSize: '0.85rem', color: '#574A24' }}>
-                  Assignments published to your enrolled cohorts. Submit solutions before the designated deadlines.
+                  View your cohort and general assignments. Submit your answer PDF before the deadline.
                 </p>
               </div>
 
               {loading ? (
                 <div style={{ padding: '3rem', textAlign: 'center', color: '#80775C' }}>Loading assignments...</div>
-              ) : upcomingAssignments.length === 0 ? (
+              ) : allAssignments.length === 0 ? (
                 <div style={{
                   padding: '3rem',
                   textAlign: 'center',
@@ -749,11 +779,11 @@ export const StudentDashboard = () => {
                   borderRadius: '12px',
                   border: '1px dashed rgba(128, 119, 92, 0.35)'
                 }}>
-                  No upcoming assignments at this time. You are up to date!
+                  No assignments are available yet.
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {upcomingAssignments.map((a) => (
+                  {allAssignments.map((a) => (
                     <div key={a.id} className="glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                         <h3 style={{ fontSize: '1.1rem', color: '#3E341A', fontWeight: 700 }}>{a.title}</h3>
@@ -769,7 +799,7 @@ export const StudentDashboard = () => {
                             alignItems: 'center',
                             gap: '0.3rem'
                           }}>
-                            <Clock size={11} /> DUE: {new Date(a.due_date).toLocaleDateString()}
+                            <Clock size={11} /> DUE: {new Date(a.due_date).toLocaleString()}
                           </span>
                         )}
                       </div>
@@ -809,6 +839,7 @@ export const StudentDashboard = () => {
                           </a>
                         )}
                       </div>
+                      <StudentAssignmentSubmission assignment={a} onSubmitted={handleAssignmentSubmitted} onRefresh={fetchAllAssignments} />
                     </div>
                   ))}
                 </div>
