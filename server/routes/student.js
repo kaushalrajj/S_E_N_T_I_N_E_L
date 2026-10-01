@@ -2,6 +2,8 @@ import express from 'express';
 import { db } from '../config/db.js';
 import { verifyToken, requireRole } from '../middleware/auth.js';
 import { broadcastEvent } from '../config/realtime.js';
+import { attachStudentSubmissions, validateAssignmentId, checkSubmissionAllowed, receiveSubmissionPdf, submitAssignment, getSubmissionFile } from '../services/assignmentSubmissions.js';
+import { submissionFailure } from '../services/assignmentRules.js';
 
 const router = express.Router();
 
@@ -92,9 +94,9 @@ router.get('/groups/:id/assignments', async (req, res) => {
       return res.status(403).json({ error: 'You are not a member of this group' });
     }
     const assignments = await db.assignments.getByGroup(req.params.id);
-    res.json(assignments);
+    res.set('Cache-Control', 'no-store').json(await attachStudentSubmissions(assignments, req.user.id));
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch group assignments: ' + error.message });
+    submissionFailure(res, error);
   }
 });
 
@@ -119,11 +121,14 @@ router.get('/groups/:id/announcements', async (req, res) => {
 router.get('/assignments', async (req, res) => {
   try {
     const assignments = await db.assignments.getByStudentGroups(req.user.id);
-    res.json(assignments);
+    res.set('Cache-Control', 'no-store').json(await attachStudentSubmissions(assignments, req.user.id));
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch assignments: ' + error.message });
+    submissionFailure(res, error);
   }
 });
+
+router.post('/assignments/:id/submission', validateAssignmentId, checkSubmissionAllowed, receiveSubmissionPdf, submitAssignment);
+router.get('/assignments/:id/submission/file', validateAssignmentId, getSubmissionFile);
 
 // -------------------------------------------------------------
 // 4. MARKS

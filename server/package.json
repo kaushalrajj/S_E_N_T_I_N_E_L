@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "test:submissions": "node --test tests/assignment-submissions.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",

@@ -1,5 +1,11 @@
+<<<<<<< HEAD
 import { createClient } from "@supabase/supabase-js";
 import { v4 as uuidv4 } from "uuid";
+=======
+import { createClient } from '@supabase/supabase-js';
+import { v4 as uuidv4 } from 'uuid';
+import { assertDeadlineOpen, submissionError } from '../services/assignmentRules.js';
+>>>>>>> origin/feature/assignment-submission
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey =
@@ -86,6 +92,7 @@ const inMemoryData = {
   groups: [],
   groupMembers: [],
   assignments: [],
+  assignmentSubmissions: [],
   announcements: [],
   marks: [],
   messages: [],
@@ -93,6 +100,7 @@ const inMemoryData = {
 
 // Seed default demo accounts into in-memory store so demo teachers and students exist
 const DEFAULT_DEMO_USERS = [
+<<<<<<< HEAD
   {
     id: "c0000000-0000-0000-0000-000000000001",
     name: "Sarah Connor (Admin)",
@@ -292,6 +300,22 @@ const DEFAULT_DEMO_USERS = [
       "$2b$10$EpRnTzVlqHNP0.fUbXUwSOyuiXe/QLSUG6x8ecJHgGwuwp9t68WNe",
     created_at: new Date().toISOString(),
   },
+=======
+  { id: 'c0000000-0000-0000-0000-000000000001', name: 'Sarah Connor (Admin)', email: 'admin@admin.org', role: 'admin', department: 'Campus Administration', stream: '', availability: [], password_hash: '$2b$10$Gi4cRbwYvRL9iQEqgDbF4uFFkpDdlaiM65nYoyG98X8Rc3xlstQfC', created_at: new Date().toISOString() },
+  { id: 'c0000000-0000-0000-0000-000000000002', name: 'Prof. Alan Turing', email: 'alan.turing@heritageit.edu.in', role: 'teacher', department: 'Computer Science', stream: 'Computer Science', availability: ['Monday_9_10','Monday_10_11','Tuesday_9_10','Wednesday_11_12','Thursday_14_15','Friday_9_10'], password_hash: '$2b$10$Gi4cRbwYvRL9iQEqgDbF4uFFkpDdlaiM65nYoyG98X8Rc3xlstQfC', created_at: new Date().toISOString() },
+  { id: 'c0000000-0000-0000-0000-000000000003', name: 'Dr. Grace Hopper', email: 'grace.hopper@heritageit.edu.in', role: 'teacher', department: 'Software Engineering', stream: 'Software Engineering', availability: ['Monday_11_12','Tuesday_14_15','Wednesday_9_10','Thursday_10_11','Friday_13_14'], password_hash: '$2b$10$Gi4cRbwYvRL9iQEqgDbF4uFFkpDdlaiM65nYoyG98X8Rc3xlstQfC', created_at: new Date().toISOString() },
+  { id: 'c0000000-0000-0000-0000-000000000004', name: 'Dr. Nikola Tesla', email: 'nikola.tesla@heritageit.edu.in', role: 'teacher', department: 'Electrical Engineering', stream: 'Electrical Engineering', availability: ['Monday_14_15','Tuesday_11_12','Wednesday_15_16','Thursday_9_10','Friday_10_11'], password_hash: '$2b$10$Gi4cRbwYvRL9iQEqgDbF4uFFkpDdlaiM65nYoyG98X8Rc3xlstQfC', created_at: new Date().toISOString() },
+  { id: 'c0000000-0000-0000-0000-000000000005', name: 'Prof. Ada Lovelace', email: 'ada.lovelace@heritageit.edu.in', role: 'teacher', department: 'Mathematics', stream: 'Mathematics', availability: ['Monday_9_10','Tuesday_9_10','Wednesday_9_10','Thursday_9_10','Friday_9_10'], password_hash: '$2b$10$Gi4cRbwYvRL9iQEqgDbF4uFFkpDdlaiM65nYoyG98X8Rc3xlstQfC', created_at: new Date().toISOString() },
+  { id: 'c0000000-0000-0000-0000-000000000006', name: 'Dr. Richard Feynman', email: 'richard.feynman@heritageit.edu.in', role: 'teacher', department: 'Physics', stream: 'Physics', availability: ['Monday_13_14','Tuesday_16_17','Wednesday_10_11','Thursday_13_14','Friday_15_16'], password_hash: '$2b$10$Gi4cRbwYvRL9iQEqgDbF4uFFkpDdlaiM65nYoyG98X8Rc3xlstQfC', created_at: new Date().toISOString() },
+  { id: 'c0000000-0000-0000-0000-000000000007', name: 'Alex Johnson', email: 'alex.johnson@gmail.com', role: 'student', department: 'Computer Science', stream: 'Computer Science', availability: [], password_hash: '$2b$10$Gi4cRbwYvRL9iQEqgDbF4uFFkpDdlaiM65nYoyG98X8Rc3xlstQfC', created_at: new Date().toISOString() },
+  { id: 'c0000000-0000-0000-0000-000000000008', name: 'Maya Patel', email: 'maya.patel@gmail.com', role: 'student', department: 'Software Engineering', stream: 'Software Engineering', availability: [], password_hash: '$2b$10$Gi4cRbwYvRL9iQEqgDbF4uFFkpDdlaiM65nYoyG98X8Rc3xlstQfC', created_at: new Date().toISOString() },
+  { id: 'c0000000-0000-0000-0000-000000000009', name: 'David Kim', email: 'david.kim@gmail.com', role: 'student', department: 'Computer Science', stream: 'Computer Science', availability: [], password_hash: '$2b$10$Gi4cRbwYvRL9iQEqgDbF4uFFkpDdlaiM65nYoyG98X8Rc3xlstQfC', created_at: new Date().toISOString() },
+  { id: 'c0000000-0000-0000-0000-000000000010', name: 'Priya Sharma', email: 'priya.sharma@gmail.com', role: 'student', department: 'Electrical Engineering', stream: 'Electrical Engineering', availability: [], password_hash: '$2b$10$Gi4cRbwYvRL9iQEqgDbF4uFFkpDdlaiM65nYoyG98X8Rc3xlstQfC', created_at: new Date().toISOString() },
+  { id: 'c0000000-0000-0000-0000-000000000011', name: 'James Wilson', email: 'james.wilson@gmail.com', role: 'student', department: 'Mathematics', stream: 'Mathematics', availability: [], password_hash: '$2b$10$Gi4cRbwYvRL9iQEqgDbF4uFFkpDdlaiM65nYoyG98X8Rc3xlstQfC', created_at: new Date().toISOString() },
+  { id: 'c0000000-0000-0000-0000-000000000012', name: 'Sofia Rodriguez', email: 'sofia.rodriguez@gmail.com', role: 'student', department: 'Physics', stream: 'Physics', availability: [], password_hash: '$2b$10$Gi4cRbwYvRL9iQEqgDbF4uFFkpDdlaiM65nYoyG98X8Rc3xlstQfC', created_at: new Date().toISOString() },
+  { id: 'c0000000-0000-0000-0000-000000000013', name: 'Liam Chen', email: 'liam.chen@gmail.com', role: 'student', department: 'Computer Science', stream: 'Computer Science', availability: [], password_hash: '$2b$10$Gi4cRbwYvRL9iQEqgDbF4uFFkpDdlaiM65nYoyG98X8Rc3xlstQfC', created_at: new Date().toISOString() },
+  { id: 'c0000000-0000-0000-0000-000000000014', name: 'Aisha Khan', email: 'aisha.khan@gmail.com', role: 'student', department: 'Software Engineering', stream: 'Software Engineering', availability: [], password_hash: '$2b$10$Gi4cRbwYvRL9iQEqgDbF4uFFkpDdlaiM65nYoyG98X8Rc3xlstQfC', created_at: new Date().toISOString() }
+>>>>>>> origin/feature/assignment-submission
 ];
 
 DEFAULT_DEMO_USERS.forEach((u) =>
@@ -484,7 +508,7 @@ export const db = {
         if (stream) q = q.eq("stream", stream);
         if (search) q = q.ilike("name", `%${search}%`);
         const { data, error } = await q;
-        if (error) console.error(error);
+        if (error) throw error;
         return data || [];
       }
       let list = Array.from(inMemoryData.users.values()).filter(
@@ -843,6 +867,7 @@ export const db = {
 
     async getById(groupId) {
       if (isSupabaseConfigured && supabase) {
+<<<<<<< HEAD
         const { data: group } = await supabase
           .from("groups")
           .select("*")
@@ -860,6 +885,17 @@ export const db = {
           .select("id, name, email, department")
           .eq("id", group.teacher_id)
           .maybeSingle();
+=======
+        const { data: group, error: groupError } = await supabase.from('groups').select('*').eq('id', groupId).maybeSingle();
+        if (groupError) throw groupError;
+        if (!group) return null;
+        const { data: members, error: memberError } = await supabase
+          .from('group_members')
+          .select('id, group_id, student:users!group_members_student_id_fkey(id, name, email, department)')
+          .eq('group_id', groupId);
+        if (memberError) throw memberError;
+        const teacher = await supabase.from('users').select('id, name, email, department').eq('id', group.teacher_id).maybeSingle();
+>>>>>>> origin/feature/assignment-submission
         return {
           ...group,
           teacher: teacher?.data || null,
@@ -1026,6 +1062,15 @@ export const db = {
   },
 
   assignments: {
+    async getById(id) {
+      if (isSupabaseConfigured && supabase) {
+        const { data, error } = await supabase.from('assignments').select('*').eq('id', id).maybeSingle();
+        if (error) throw error;
+        return formatAssignmentRecord(data);
+      }
+      return formatAssignmentRecord(inMemoryData.assignments.find(a => a.id === id));
+    },
+
     async getAll() {
       if (isSupabaseConfigured && supabase) {
         const { data, error } = await supabase
@@ -1061,6 +1106,7 @@ export const db = {
     async getByGroup(groupId) {
       if (isSupabaseConfigured && supabase) {
         const { data, error } = await supabase
+<<<<<<< HEAD
           .from("assignments")
           .select("*")
           .eq("group_id", groupId)
@@ -1070,6 +1116,13 @@ export const db = {
             "Error fetching group assignments:",
             error.message || error,
           );
+=======
+          .from('assignments')
+          .select('*')
+          .eq('group_id', groupId)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+>>>>>>> origin/feature/assignment-submission
         return (data || []).map(formatAssignmentRecord);
       }
       return inMemoryData.assignments
@@ -1079,6 +1132,7 @@ export const db = {
 
     async getByStudentGroups(studentId) {
       if (isSupabaseConfigured && supabase) {
+<<<<<<< HEAD
         const { data: memberships } = await supabase
           .from("group_members")
           .select("group_id")
@@ -1103,6 +1157,27 @@ export const db = {
       return inMemoryData.assignments
         .filter((a) => groupIds.includes(a.group_id))
         .map(formatAssignmentRecord);
+=======
+        const { data: memberships, error: membershipError } = await supabase
+          .from('group_members')
+          .select('group_id')
+          .eq('student_id', studentId);
+        if (membershipError) throw membershipError;
+        const groupIds = memberships.map(m => m.group_id);
+        let query = supabase
+          .from('assignments')
+          .select('*')
+          .order('created_at', { ascending: false });
+        query = groupIds.length
+          ? query.or(`group_id.is.null,group_id.in.(${groupIds.join(',')})`)
+          : query.is('group_id', null);
+        const { data, error } = await query;
+        if (error) throw error;
+        return (data || []).map(formatAssignmentRecord);
+      }
+      const groupIds = inMemoryData.groupMembers.filter(m => m.student_id === studentId).map(m => m.group_id);
+      return inMemoryData.assignments.filter(a => !a.group_id || groupIds.includes(a.group_id)).map(formatAssignmentRecord);
+>>>>>>> origin/feature/assignment-submission
     },
 
     async create({
@@ -1135,6 +1210,71 @@ export const db = {
       inMemoryData.assignments.unshift(newAssignment);
       return formatAssignmentRecord(newAssignment);
     },
+  },
+
+  assignmentSubmissions: {
+    assertConfigured() {
+      // This app uses its own JWT, not Supabase Auth. Keep this table server-only.
+      if (isSupabaseConfigured && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        throw submissionError(503, 'Assignment submissions require SUPABASE_SERVICE_ROLE_KEY in the server environment.');
+      }
+    },
+
+    async getForStudent(studentId, assignmentIds) {
+      if (!assignmentIds.length) return [];
+      this.assertConfigured();
+      if (isSupabaseConfigured && supabase) {
+        const { data, error } = await supabase.from('assignment_submissions').select('*')
+          .eq('student_id', studentId).in('assignment_id', assignmentIds);
+        if (error) throw error;
+        return data || [];
+      }
+      return inMemoryData.assignmentSubmissions.filter(s => s.student_id === studentId && assignmentIds.includes(s.assignment_id));
+    },
+
+    async getOne(assignmentId, studentId) {
+      const records = await this.getForStudent(studentId, [assignmentId]);
+      return records[0] || null;
+    },
+
+    async getByAssignment(assignmentId) {
+      this.assertConfigured();
+      if (isSupabaseConfigured && supabase) {
+        const { data, error } = await supabase.from('assignment_submissions')
+          .select('*, student:users!assignment_submissions_student_id_fkey(id, name, email, department)')
+          .eq('assignment_id', assignmentId).order('submitted_at', { ascending: false });
+        if (error) throw error;
+        return data || [];
+      }
+      return inMemoryData.assignmentSubmissions.filter(s => s.assignment_id === assignmentId).map(s => {
+        const user = Array.from(inMemoryData.users.values()).find(u => u.id === s.student_id);
+        return { ...s, student: user && { id: user.id, name: user.name, email: user.email, department: user.department } };
+      });
+    },
+
+    async create({ assignment_id, student_id, file_name, file_size, storage_public_id }) {
+      this.assertConfigured();
+      const record = { id: uuidv4(), assignment_id, student_id, file_name, file_size, storage_public_id };
+      if (isSupabaseConfigured && supabase) {
+        // The DB trigger rechecks the deadline and membership at insertion time.
+        const { data, error } = await supabase.from('assignment_submissions').insert(record).select().single();
+        if (error) throw error;
+        return data;
+      }
+      // No awaits between these checks and insertion: concurrent requests cannot replace a submission.
+      const assignment = inMemoryData.assignments.find(a => a.id === assignment_id);
+      if (!assignment) throw submissionError(404, 'Assignment not found.');
+      if (inMemoryData.assignmentSubmissions.some(s => s.assignment_id === assignment_id && s.student_id === student_id)) {
+        throw Object.assign(new Error('Already submitted.'), { code: '23505' });
+      }
+      if (assignment.group_id && !inMemoryData.groupMembers.some(m => m.group_id === assignment.group_id && m.student_id === student_id)) {
+        throw submissionError(403, 'You are not a member of this group.');
+      }
+      assertDeadlineOpen(assignment);
+      record.submitted_at = new Date().toISOString();
+      inMemoryData.assignmentSubmissions.push(record);
+      return record;
+    }
   },
 
   announcements: {

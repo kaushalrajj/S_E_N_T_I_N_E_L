@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import express from "express";
 import multer from "multer";
 import { db } from "../config/db.js";
@@ -7,6 +8,15 @@ import {
   uploadBufferToCloudinary,
   isCloudinaryConfigured,
 } from "../config/cloudinary.js";
+=======
+import express from 'express';
+import multer from 'multer';
+import { db } from '../config/db.js';
+import { verifyToken, requireRole } from '../middleware/auth.js';
+import { broadcastEvent } from '../config/realtime.js';
+import { uploadBufferToCloudinary, isCloudinaryConfigured } from '../config/cloudinary.js';
+import { validateAssignmentId, listAssignmentSubmissions, getSubmissionFile } from '../services/assignmentSubmissions.js';
+>>>>>>> origin/feature/assignment-submission
 
 const router = express.Router();
 
@@ -19,6 +29,28 @@ const upload = multer({
 
 // Guard all teacher routes
 router.use(verifyToken, requireRole("teacher"));
+
+router.get('/assignments/:id/submissions', validateAssignmentId, listAssignmentSubmissions);
+router.get('/assignments/:id/submissions/:studentId/file', validateAssignmentId, getSubmissionFile);
+
+async function requireOwnedGroup(req, res, next) {
+  try {
+    const group = await db.groups.getById(req.params.id || req.body.group_id);
+    if (!group) return res.status(404).json({ error: 'Group not found.' });
+    if (group.teacher_id !== req.user.id) return res.status(403).json({ error: 'You can only manage your own groups.' });
+    next();
+  } catch {
+    res.status(500).json({ error: 'Could not check group ownership.' });
+  }
+}
+
+function validateAssignmentDeadline(req, res, next) {
+  const value = req.body.due_date;
+  if (value && (!/(Z|[+-]\d{2}:\d{2})$/i.test(value) || !Number.isFinite(Date.parse(value)))) {
+    return res.status(400).json({ error: 'Provide a valid deadline including its timezone.' });
+  }
+  next();
+}
 
 // -------------------------------------------------------------
 // 1. STUDENT MANAGEMENT
@@ -75,6 +107,7 @@ router.post("/groups", async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 router.post("/groups/:id/members/bulk", async (req, res) => {
   try {
     const { id: groupId } = req.params;
@@ -121,6 +154,9 @@ router.post("/groups/:id/members/bulk", async (req, res) => {
 });
 
 router.post("/groups/:id/members", async (req, res) => {
+=======
+router.post('/groups/:id/members', requireOwnedGroup, async (req, res) => {
+>>>>>>> origin/feature/assignment-submission
   try {
     const { id: groupId } = req.params;
     const { student_id } = req.body;
@@ -156,7 +192,11 @@ router.post("/groups/:id/members", async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 router.delete("/groups/:id/members/:student_id", async (req, res) => {
+=======
+router.delete('/groups/:id/members/:student_id', requireOwnedGroup, async (req, res) => {
+>>>>>>> origin/feature/assignment-submission
   try {
     const { id: groupId, student_id } = req.params;
     await db.groups.removeMember(groupId, student_id);
@@ -179,7 +219,11 @@ router.delete("/groups/:id/members/:student_id", async (req, res) => {
 // 2b. GROUP ASSIGNMENTS (scoped to a group)
 // Create / view assignments for a specific group
 // -------------------------------------------------------------
+<<<<<<< HEAD
 router.get("/groups/:id/assignments", async (req, res) => {
+=======
+router.get('/groups/:id/assignments', requireOwnedGroup, async (req, res) => {
+>>>>>>> origin/feature/assignment-submission
   try {
     const assignments = await db.assignments.getByGroup(req.params.id);
     res.json(assignments);
@@ -190,12 +234,18 @@ router.get("/groups/:id/assignments", async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 router.post(
   "/groups/:id/assignments",
   upload.single("file"),
   async (req, res) => {
     try {
       const { title, description, file_url, due_date } = req.body;
+=======
+router.post('/groups/:id/assignments', requireOwnedGroup, upload.single('file'), validateAssignmentDeadline, async (req, res) => {
+  try {
+    const { title, description, file_url, due_date } = req.body;
+>>>>>>> origin/feature/assignment-submission
 
       if (!title || !description) {
         return res
@@ -312,7 +362,14 @@ router.get("/assignments", async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 router.post("/assignments", upload.single("file"), async (req, res) => {
+=======
+router.post('/assignments', upload.single('file'), validateAssignmentDeadline, (req, res, next) => {
+  if (req.body.group_id) return requireOwnedGroup(req, res, next);
+  next();
+}, async (req, res) => {
+>>>>>>> origin/feature/assignment-submission
   try {
     const { title, description, file_url, group_id, due_date } = req.body;
 

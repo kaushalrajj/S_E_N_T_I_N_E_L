@@ -1,6 +1,7 @@
 -- ==========================================================
 -- CampusSphere - Supabase PostgreSQL Database Schema
 -- Complete Table Definitions, Foreign Keys & Row Level Security
+-- After this base schema, also run config/migrations/assignment_submissions.sql.
 -- ==========================================================
 
 -- Enable UUID extension if not already enabled
