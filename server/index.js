@@ -10,14 +10,24 @@ const requiredEnvVars = [
   'FRONTEND_URL',
   'CLOUDINARY_CLOUD_NAME',
   'CLOUDINARY_API_KEY',
-  'CLOUDINARY_API_SECRET',
-  'SMTP_EMAIL',
-  'SMTP_PASS'
+  'CLOUDINARY_API_SECRET'
 ];
 
 const missingEnvVars = requiredEnvVars.filter((name) => !process.env[name]);
 if (!process.env.SUPABASE_ANON_KEY && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
   missingEnvVars.push('SUPABASE_ANON_KEY or SUPABASE_SERVICE_ROLE_KEY');
+}
+
+const hasOAuth = Boolean(
+  process.env.GMAIL_CLIENT_ID &&
+  process.env.GMAIL_CLIENT_SECRET &&
+  process.env.GMAIL_REFRESH_TOKEN &&
+  process.env.GMAIL_USER
+);
+const hasSmtp = Boolean(process.env.SMTP_EMAIL && process.env.SMTP_PASS);
+
+if (!hasOAuth && !hasSmtp) {
+  missingEnvVars.push('Email Credentials (either Gmail OAuth [GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN, GMAIL_USER] or SMTP [SMTP_EMAIL, SMTP_PASS])');
 }
 
 if (missingEnvVars.length > 0) {

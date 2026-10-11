@@ -2,8 +2,10 @@ import nodemailer from 'nodemailer';
 import dns from 'node:dns/promises';
 import { google } from 'googleapis';
 
-let cachedLastRefreshToken = null;
-let gmailOAuthDisabledPermanently = false;
+function cleanCredential(value) {
+  if (!value || typeof value !== 'string') return '';
+  return value.trim().replace(/^["']|["']$/g, '').trim();
+}
 
 /**
  * Send 6-digit OTP email using Gmail API (OAuth2) with graceful fallback to Nodemailer SMTP.
@@ -21,34 +23,27 @@ export async function sendOtpEmail(toEmail, otp) {
       </div>
     `;
 
-  const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
-  if (cachedLastRefreshToken !== refreshToken) {
-    cachedLastRefreshToken = refreshToken;
-    gmailOAuthDisabledPermanently = false;
-  }
+  const clientId = cleanCredential(process.env.GMAIL_CLIENT_ID);
+  const clientSecret = cleanCredential(process.env.GMAIL_CLIENT_SECRET);
+  const refreshToken = cleanCredential(process.env.GMAIL_REFRESH_TOKEN);
+  const gmailUser = cleanCredential(process.env.GMAIL_USER);
 
-  const hasGmailOAuth = Boolean(
-    process.env.GMAIL_CLIENT_ID &&
-    process.env.GMAIL_CLIENT_SECRET &&
-    refreshToken &&
-    process.env.GMAIL_USER &&
-    !gmailOAuthDisabledPermanently
-  );
+  const hasGmailOAuth = Boolean(clientId && clientSecret && refreshToken && gmailUser);
 
   if (hasGmailOAuth) {
     try {
-      const auth = new google.auth.OAuth2(
-        process.env.GMAIL_CLIENT_ID,
-        process.env.GMAIL_CLIENT_SECRET
-      );
+      const auth = new google.auth.OAuth2(clientId, clientSecret);
       auth.setCredentials({ refresh_token: refreshToken });
+
       const { token } = await auth.getAccessToken();
-      if (!token) throw new Error('Gmail OAuth access token was not returned');
+      if (!token) {
+        throw new Error('Gmail OAuth access token was not returned');
+      }
 
       const rawMessage = [
-        `From: ${process.env.GMAIL_USER}`,
+        `From: ${gmailUser}`,
         `To: ${toEmail}`,
-        'Subject: OTP Verification',
+        'Subject: Sentinel OTP Verification Code',
         'MIME-Version: 1.0',
         'Content-Type: text/html; charset=UTF-8',
         '',
@@ -69,31 +64,28 @@ export async function sendOtpEmail(toEmail, otp) {
         throw new Error(`Gmail API error (${response.status}): ${errText}`);
       }
 
-      return await response.json();
+      const sendResult = await response.json();
+      console.info(`[Mail] OTP successfully sent via Gmail API to ${toEmail}`);
+      return sendResult;
     } catch (error) {
       const errorMsg = error.message || '';
-      const isInvalidGrant =
-        errorMsg.includes('invalid_grant') ||
-        error.response?.data?.error === 'invalid_grant' ||
-        error.code === 400;
-
-      if (isInvalidGrant) {
-        gmailOAuthDisabledPermanently = true;
-        console.warn('[Mail] Gmail OAuth refresh token is invalid or expired (invalid_grant). Disabling OAuth retries and falling back to SMTP.');
-      } else {
-        console.warn(`[Mail] Gmail OAuth delivery failed; falling back to SMTP: ${errorMsg}`);
-      }
+      const errorDesc = error.response?.data?.error_description || '';
+      console.warn(`[Mail] Gmail OAuth delivery failed (${errorMsg}${errorDesc ? `: ${errorDesc}` : ''}); falling back to SMTP.`);
     }
   }
 
   // Fallback to Nodemailer SMTP
-  if (!process.env.SMTP_EMAIL || !process.env.SMTP_PASS) {
-    throw new Error('No working email provider is configured. Please set SMTP_EMAIL and SMTP_PASS or configure valid email credentials.');
+  const smtpEmail = cleanCredential(process.env.SMTP_EMAIL);
+  const smtpPass = cleanCredential(process.env.SMTP_PASS);
+  const smtpHost = cleanCredential(process.env.SMTP_HOST) || 'smtp.gmail.com';
+  const smtpPort = Number(cleanCredential(process.env.SMTP_PORT) || 587);
+  const smtpSecure = String(cleanCredential(process.env.SMTP_SECURE) || 'false') === 'true';
+
+  if (!smtpEmail || !smtpPass) {
+    throw new Error('No working email provider is configured. Please configure valid Gmail OAuth credentials or set SMTP_EMAIL and SMTP_PASS.');
   }
 
-  const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
   let smtpAddress = smtpHost;
-
   try {
     [smtpAddress] = await dns.resolve4(smtpHost);
   } catch (error) {
@@ -102,8 +94,8 @@ export async function sendOtpEmail(toEmail, otp) {
 
   const transporter = nodemailer.createTransport({
     host: smtpAddress,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: String(process.env.SMTP_SECURE || 'false') === 'true',
+    port: smtpPort,
+    secure: smtpSecure,
     family: 4,
     tls: {
       servername: smtpHost
@@ -112,17 +104,19 @@ export async function sendOtpEmail(toEmail, otp) {
     greetingTimeout: 15000,
     socketTimeout: 20000,
     auth: {
-      user: process.env.SMTP_EMAIL,
-      pass: process.env.SMTP_PASS
+      user: smtpEmail,
+      pass: smtpPass
     }
   });
 
   const mailOptions = {
-    from: process.env.SMTP_EMAIL,
+    from: smtpEmail,
     to: toEmail,
-    subject: 'OTP Verification',
+    subject: 'Sentinel OTP Verification Code',
     html
   };
 
-  return await transporter.sendMail(mailOptions);
+  const smtpResult = await transporter.sendMail(mailOptions);
+  console.info(`[Mail] OTP successfully sent via SMTP to ${toEmail}`);
+  return smtpResult;
 }
