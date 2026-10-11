@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { db, isSupabaseConfigured, supabase } from '../config/db.js';
@@ -138,6 +138,11 @@ router.post('/send-otp', async (req, res) => {
     if (!email) return res.status(400).json({ error: 'Email address is required' });
 
     const normalizedEmail = email.trim().toLowerCase();
+    const role = extractRoleFromEmail(normalizedEmail);
+    if (role === 'admin') {
+      return res.status(400).json({ error: 'Admin authentication does not require OTP. Please sign in using your password.' });
+    }
+
     console.info(`[Auth] OTP request started for ${normalizedEmail} (login=${Boolean(forLogin)})`);
 
     if (forLogin) {
@@ -155,13 +160,13 @@ router.post('/send-otp', async (req, res) => {
 
     const otp = generateOtp();
     const now = Date.now();
-    await saveOtpRecord(normalizedEmail, { otp, expiresAt: now + OTP_EXPIRY_MS, lastSentAt: now });
     await sendOtpEmail(normalizedEmail, otp);
-    console.info(`[Auth] OTP email sent for ${normalizedEmail}`);
+    await saveOtpRecord(normalizedEmail, { otp, expiresAt: now + OTP_EXPIRY_MS, lastSentAt: now });
+    console.info(`[Auth] OTP email sent successfully for ${normalizedEmail}`);
     return res.json({ message: 'OTP sent successfully', email: normalizedEmail });
   } catch (error) {
-    console.error('[Auth] send-otp error:', error);
-    return res.status(500).json({ error: 'Failed to send OTP email: ' + (error.message || 'Unknown error') });
+    console.error('[Auth] send-otp error:', error.message || error);
+    return res.status(500).json({ error: 'Failed to send OTP verification code. Please check your email address or try again shortly.' });
   }
 });
 
@@ -172,6 +177,11 @@ router.post('/resend-otp', async (req, res) => {
     if (!email) return res.status(400).json({ error: 'Email address is required' });
 
     const normalizedEmail = email.trim().toLowerCase();
+    const role = extractRoleFromEmail(normalizedEmail);
+    if (role === 'admin') {
+      return res.status(400).json({ error: 'Admin authentication does not require OTP. Please sign in using your password.' });
+    }
+
     console.info(`[Auth] OTP resend started for ${normalizedEmail}`);
     const existing = await getOtpRecord(normalizedEmail);
     if (existing && Date.now() - existing.lastSentAt < RATE_LIMIT_MS) {
@@ -181,13 +191,13 @@ router.post('/resend-otp', async (req, res) => {
 
     const otp = generateOtp();
     const now = Date.now();
-    await saveOtpRecord(normalizedEmail, { otp, expiresAt: now + OTP_EXPIRY_MS, lastSentAt: now });
     await sendOtpEmail(normalizedEmail, otp);
-    console.info(`[Auth] OTP resend email sent for ${normalizedEmail}`);
+    await saveOtpRecord(normalizedEmail, { otp, expiresAt: now + OTP_EXPIRY_MS, lastSentAt: now });
+    console.info(`[Auth] OTP resend email sent successfully for ${normalizedEmail}`);
     return res.json({ message: 'OTP resent successfully', email: normalizedEmail });
   } catch (error) {
-    console.error('[Auth] resend-otp error:', error);
-    return res.status(500).json({ error: 'Failed to resend OTP email: ' + (error.message || 'Unknown error') });
+    console.error('[Auth] resend-otp error:', error.message || error);
+    return res.status(500).json({ error: 'Failed to resend OTP verification code. Please try again shortly.' });
   }
 });
 

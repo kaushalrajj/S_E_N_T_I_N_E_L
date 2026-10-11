@@ -78,6 +78,7 @@ export const Login = () => {
   };
 
   const handleSendOtp = async () => {
+    if (sendingOtp) return;
     if (!email || !email.includes("@")) {
       setError("Please enter a valid email address.");
       return;
@@ -88,10 +89,15 @@ export const Login = () => {
     try {
       await sendOtp(email.trim().toLowerCase(), true); // forLogin=true
       setOtpSent(true);
-      setOtpSuccessMessage(`Verification code sent to ${email}`);
+      setOtpSuccessMessage(`Verification code sent to ${email.trim().toLowerCase()}`);
       setResendCooldown(30);
     } catch (err) {
-      setError(err.message || "Failed to send verification OTP.");
+      const rawMsg = err?.message || "";
+      const displayMsg = rawMsg.toLowerCase().includes("invalid_grant") || rawMsg.toLowerCase().includes("failed to send otp email")
+        ? "Unable to send verification code right now. Please try again in a few moments."
+        : rawMsg || "Failed to send verification OTP.";
+      setError(displayMsg);
+      setOtpSent(false);
     } finally {
       setSendingOtp(false);
     }
@@ -99,6 +105,7 @@ export const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading || sendingOtp) return;
     setError("");
     setLoading(true);
     try {
@@ -271,6 +278,7 @@ export const Login = () => {
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
+                  if (error) setError("");
                   if (otpSent) {
                     setOtpSent(false);
                     setOtp("");
@@ -634,7 +642,10 @@ export const Login = () => {
                   <input
                     type="text"
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value.trim())}
+                    onChange={(e) => {
+                      setOtp(e.target.value.trim());
+                      if (error) setError("");
+                    }}
                     placeholder={
                       otpSent
                         ? "Enter 6-digit OTP code"
@@ -671,7 +682,7 @@ export const Login = () => {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || sendingOtp}
             className="btn btn-primary"
             style={{
               width: "100%",
@@ -681,6 +692,7 @@ export const Login = () => {
               boxShadow: "0 3px 14px rgba(38, 28, 9, 0.40)",
               color: "#FAE8B4",
               fontWeight: 800,
+              cursor: loading || sendingOtp ? "not-allowed" : "pointer",
             }}
           >
             <span>
