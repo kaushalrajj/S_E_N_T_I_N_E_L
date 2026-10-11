@@ -120,10 +120,8 @@ app.get('/api/realtime/stream', (req, res) => {
 app.get('/api/realtime/stats', async (req, res) => {
   try {
     const stats = await db.admin.getStats();
-    const assignments = await db.assignments.getAll();
     res.json({
       ...stats,
-      totalAssignments: assignments.length,
       isSupabaseConfigured,
       timestamp: new Date().toISOString()
     });

@@ -120,8 +120,27 @@ router.get('/groups/:id/announcements', async (req, res) => {
 // -------------------------------------------------------------
 router.get('/assignments', async (req, res) => {
   try {
+    // db.assignments.getByStudentGroups already filters by the student's enrolled
+    // group memberships at the database level. We apply a secondary route-level
+    // guard below so the invariant holds even if the DB layer were to change.
     const assignments = await db.assignments.getByStudentGroups(req.user.id);
-    res.set('Cache-Control', 'no-store').json(await attachStudentSubmissions(assignments, req.user.id));
+
+    // Secondary guard: resolve the student's actual enrolled group IDs and strip
+    // any assignment whose group_id is not in that verified set. This prevents
+    // leakage of assignments from groups the student is not enrolled in —
+    // regardless of how the assignment's group_id was set (DB column or embedded
+    // description metadata). Uses the lightweight helper to avoid N+1 queries.
+    const enrolledGroupIds = await db.groups.getGroupIdsForStudent(req.user.id);
+
+    // If the student is not enrolled in any group, return an empty list.
+    // A missing group is never public by itself. Only an explicit all_students
+    // publication scope may bypass membership.
+    const scoped = assignments.filter(
+      (a) => (a.publication_scope === 'all_students' && !a.group_id) ||
+        (a.group_id && enrolledGroupIds.has(a.group_id))
+    );
+
+    res.set('Cache-Control', 'no-store').json(await attachStudentSubmissions(scoped, req.user.id));
   } catch (error) {
     submissionFailure(res, error);
   }
@@ -207,5 +226,4 @@ router.get('/messages/:teacherId', async (req, res) => {
 });
 
 export default router;
-
 

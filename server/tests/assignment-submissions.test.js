@@ -120,7 +120,7 @@ test('concurrent submissions accept exactly one and clean up the losing upload',
 
 test('group outsiders cannot upload or read other students submissions', async () => {
   const a = await assignment();
-  assert.equal((await submit(a.id, outsider)).status, 403);
+  assert.equal((await submit(a.id, outsider)).status, 404);
   await submit(a.id);
   assert.equal((await request(`/student/assignments/${a.id}/submission/file`, outsider)).status, 404);
   assert.equal((await request(`/teacher/assignments/${a.id}/submissions`, otherTeacher)).status, 403);
@@ -175,11 +175,11 @@ test('upload finishing after the deadline is rejected and cleaned up', async () 
   } finally { uploadDelay = 0; }
 });
 
-test('general assignments and assignments without a deadline are visible and submittable', async () => {
+test('unscoped assignments and assignments without a deadline are not student-visible', async () => {
   const a = await assignment({ groupId: null, due_date: null });
   const list = await request('/student/assignments', outsider);
-  assert.ok(list.data.some(row => row.id === a.id));
-  assert.equal((await submit(a.id, outsider)).status, 201);
+  assert.ok(!list.data.some(row => row.id === a.id));
+  assert.equal((await submit(a.id, outsider)).status, 404);
 });
 
 test('failed persistence cleans up the upload and does not show Submitted', async () => {
@@ -225,5 +225,5 @@ test('submitted work remains in teachers roster after student removal', async ()
   await db.groups.removeMember(group.id, secondStudent);
   const roster = await request(`/teacher/assignments/${a.id}/submissions`, teacher);
   assert.ok(roster.data.students.some(row => row.student.id === secondStudent && row.submission));
-  assert.equal((await request(`/student/assignments/${a.id}/submission/file`, secondStudent)).status, 200);
+  assert.equal((await request(`/student/assignments/${a.id}/submission/file`, secondStudent)).status, 404);
 });

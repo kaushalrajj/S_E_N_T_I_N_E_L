@@ -92,7 +92,9 @@ export const RealtimeProvider = ({ children }) => {
   const connectSupabase = useCallback(() => {
     if (!supabaseClient) return;
 
-    const tables = ['complaints', 'messages', 'assignments', 'marks', 'groups', 'group_members'];
+    // Assignment records contain group-scoped deadlines. They are refreshed through
+    // authenticated student endpoints instead of a global Supabase channel.
+    const tables = ['complaints', 'messages', 'marks', 'groups', 'group_members'];
     const channel = supabaseClient.channel('campus-sphere-realtime');
 
     tables.forEach(table => {

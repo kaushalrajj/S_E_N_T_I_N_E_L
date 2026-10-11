@@ -29,6 +29,7 @@ export const supabase = isSupabaseConfigured
 export const schemaCapabilities = {
   hasAssignmentGroupId: false,
   hasAssignmentDueDate: false,
+  hasAssignmentPublicationScope: false,
   hasMessageSenderRole: false,
   hasAnnouncementsTable: false,
   probed: false,
@@ -52,6 +53,12 @@ export async function probeSchema() {
       .select("due_date")
       .limit(1);
     schemaCapabilities.hasAssignmentDueDate = !errD;
+
+    const { error: errP } = await supabase
+      .from("assignments")
+      .select("publication_scope")
+      .limit(1);
+    schemaCapabilities.hasAssignmentPublicationScope = !errP;
 
     const { error: errM } = await supabase
       .from("messages")
@@ -305,6 +312,9 @@ function formatAssignmentRecord(a) {
   let cleanDescription = a.description || "";
   let groupId = a.group_id || null;
   let dueDate = a.due_date || null;
+  const publicationScope = a.publication_scope === "all_students"
+    ? "all_students"
+    : "group";
 
   const metaMatch = cleanDescription.match(/<!--META:(.*?)-->/);
   if (metaMatch) {
@@ -320,6 +330,7 @@ function formatAssignmentRecord(a) {
     ...a,
     group_id: groupId,
     due_date: dueDate,
+    publication_scope: publicationScope,
     description: cleanDescription,
   };
 }
@@ -677,6 +688,26 @@ export const db = {
   },
 
   groups: {
+    // Lightweight helper: returns the Set of group IDs this student is enrolled in.
+    // Use this instead of getByStudent() when only the group ID set is needed
+    // (e.g., for access-control checks), to avoid expensive N+1 sub-queries.
+    async getGroupIdsForStudent(studentId) {
+      if (isSupabaseConfigured && supabase) {
+        const { data: memberships, error } = await supabase
+          .from('group_members')
+          .select('group_id')
+          .eq('student_id', studentId);
+        if (error) throw error;
+        const ids = (memberships || []).map((m) => m.group_id).filter(Boolean);
+        return new Set(ids);
+      }
+      const ids = inMemoryData.groupMembers
+        .filter((m) => m.student_id === studentId)
+        .map((m) => m.group_id)
+        .filter(Boolean);
+      return new Set(ids);
+    },
+
     async getByTeacher(teacherId) {
       if (isSupabaseConfigured && supabase) {
         const { data: groups, error: gError } = await supabase
@@ -1030,6 +1061,42 @@ export const db = {
   },
 
   assignments: {
+    async getForStudent(studentId, assignmentId) {
+      if (isSupabaseConfigured && supabase) {
+        const { data: memberships, error: membershipError } = await supabase
+          .from('group_members')
+          .select('group_id')
+          .eq('student_id', studentId);
+        if (membershipError) throw membershipError;
+
+        const groupIds = memberships.map((membership) => membership.group_id);
+        if (groupIds.length === 0) return null;
+
+        const { data, error } = await supabase
+          .from('assignments')
+          .select('*')
+          .eq('id', assignmentId)
+          .maybeSingle();
+        if (error) throw error;
+        const formatted = formatAssignmentRecord(data);
+        if (!formatted) return null;
+        if (formatted.publication_scope === 'all_students' && !formatted.group_id) return formatted;
+        return groupIds.includes(formatted.group_id) ? formatted : null;
+      }
+
+      const assignment = inMemoryData.assignments.find((item) => item.id === assignmentId);
+      if (!assignment) return null;
+      const isMember = (assignment.publication_scope === 'all_students' && !assignment.group_id) ||
+        inMemoryData.groupMembers.some(
+        (membership) =>
+          membership.student_id === studentId &&
+          assignment.group_id === membership.group_id,
+      );
+      return isMember
+        ? formatAssignmentRecord(assignment)
+        : null;
+    },
+
     async getById(id) {
       if (isSupabaseConfigured && supabase) {
         const { data, error } = await supabase.from('assignments').select('*').eq('id', id).maybeSingle();
@@ -1079,38 +1146,98 @@ export const db = {
           .eq("group_id", groupId)
           .order("created_at", { ascending: false });
         if (error) throw error;
-        return (data || []).map(formatAssignmentRecord);
+        const groupResult = await supabase
+          .from("groups")
+          .select("id, group_name")
+          .eq("id", groupId)
+          .maybeSingle();
+        if (groupResult.error) throw groupResult.error;
+        const teacherIds = [...new Set((data || []).map((assignment) => assignment.teacher_id).filter(Boolean))];
+        const teacherResult = teacherIds.length
+          ? await supabase.from("users").select("id, name, department, stream").in("id", teacherIds)
+          : { data: [] };
+        if (teacherResult.error) throw teacherResult.error;
+        const teacherById = new Map((teacherResult.data || []).map((teacher) => [teacher.id, teacher]));
+        return (data || []).map(formatAssignmentRecord).map((assignment) => ({
+          ...assignment,
+          group: groupResult.data || null,
+          teacher: teacherById.get(assignment.teacher_id) || null,
+        }));
       }
+      const group = inMemoryData.groups.find((item) => item.id === groupId) || null;
       return inMemoryData.assignments
         .filter((a) => a.group_id === groupId)
-        .map(formatAssignmentRecord);
+        .map(formatAssignmentRecord)
+        .map((assignment) => ({
+          ...assignment,
+          group,
+          teacher: Array.from(inMemoryData.users.values()).find((user) => user.id === assignment.teacher_id) || null,
+        }));
     },
 
     async getByStudentGroups(studentId) {
       if (isSupabaseConfigured && supabase) {
+        // Step 1: Resolve the student's enrolled group IDs.
         const { data: memberships, error: membershipError } = await supabase
           .from('group_members')
           .select('group_id')
           .eq('student_id', studentId);
         if (membershipError) throw membershipError;
-        const groupIds = memberships.map((m) => m.group_id);
-        let query = supabase
-          .from("assignments")
-          .select("*")
-          .order("created_at", { ascending: false });
-        query = groupIds.length
-          ? query.or(`group_id.is.null,group_id.in.(${groupIds.join(",")})`)
-          : query.is("group_id", null);
-        const { data, error } = await query;
+        // Guard against null response (no memberships → no assignments).
+        const groupIds = (memberships || []).map((m) => m.group_id).filter(Boolean);
+        let query = supabase.from("assignments").select("*");
+        if (schemaCapabilities.hasAssignmentPublicationScope) {
+          query = groupIds.length
+            ? query.or(`group_id.in.(${groupIds.join(",")}),and(publication_scope.eq.all_students,group_id.is.null)`)
+            : query.eq("publication_scope", "all_students").is("group_id", null);
+        } else if (groupIds.length) {
+          query = query.in("group_id", groupIds);
+        } else {
+          return [];
+        }
+        const { data, error } = await query.order("created_at", { ascending: false });
         if (error) throw error;
-        return (data || []).map(formatAssignmentRecord);
+
+        const groupIdSet = new Set(groupIds);
+        const assignments = (data || []).map(formatAssignmentRecord).filter((a) =>
+          (a.publication_scope === "all_students" && !a.group_id) ||
+          (a.group_id && groupIdSet.has(a.group_id))
+        );
+        const groupRecords = groupIds.length
+          ? await supabase.from("groups").select("id, group_name, teacher_id").in("id", groupIds)
+          : { data: [] };
+        if (groupRecords.error) throw groupRecords.error;
+        const groupById = new Map((groupRecords.data || []).map((group) => [group.id, group]));
+        const teacherIds = [...new Set(assignments.map((a) => a.teacher_id).filter(Boolean))];
+        const teacherRecords = teacherIds.length
+          ? await supabase.from("users").select("id, name, department, stream").in("id", teacherIds)
+          : { data: [] };
+        if (teacherRecords.error) throw teacherRecords.error;
+        const teacherById = new Map((teacherRecords.data || []).map((teacher) => [teacher.id, teacher]));
+        return assignments.map((a) => ({
+          ...a,
+          group: a.group_id ? groupById.get(a.group_id) || null : null,
+          teacher: teacherById.get(a.teacher_id) || null,
+        }));
       }
+
+      // In-memory path: apply the same two-step filtering.
       const groupIds = inMemoryData.groupMembers
         .filter((m) => m.student_id === studentId)
-        .map((m) => m.group_id);
+        .map((m) => m.group_id)
+        .filter(Boolean);
+      const groupIdSet = new Set(groupIds);
       return inMemoryData.assignments
-        .filter((a) => !a.group_id || groupIds.includes(a.group_id))
-        .map(formatAssignmentRecord);
+        .filter((a) =>
+          (a.publication_scope === "all_students" && !a.group_id) ||
+          (a.group_id && groupIdSet.has(a.group_id))
+        )
+        .map(formatAssignmentRecord)
+        .map((a) => ({
+          ...a,
+          group: a.group_id ? inMemoryData.groups.find((g) => g.id === a.group_id) || null : null,
+          teacher: Array.from(inMemoryData.users.values()).find((u) => u.id === a.teacher_id) || null,
+        }));
     },
 
     async create({
@@ -1121,6 +1248,8 @@ export const db = {
       description,
       file_url,
       due_date,
+      publicationScope,
+      publication_scope,
     }) {
       const resolvedTeacherId = teacherId || teacher_id;
       if (!resolvedTeacherId) {
@@ -1130,6 +1259,7 @@ export const db = {
         id: uuidv4(),
         teacher_id: resolvedTeacherId,
         group_id: groupId || null,
+        publication_scope: publicationScope || publication_scope || "group",
         title,
         description,
         file_url: file_url || null,

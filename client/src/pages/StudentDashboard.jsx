@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Navbar } from "../components/Navbar";
 import { api } from "../api/apiClient";
 import { useRealtime } from "../context/RealtimeContext";
@@ -62,6 +62,15 @@ export const StudentDashboard = () => {
 
   // 2. All Assignments & Deadline Tracking State
   const [allAssignments, setAllAssignments] = useState([]);
+  const [selectedAssignment, setSelectedAssignment] = useState(null);
+  const [assignmentFilter, setAssignmentFilter] = useState("all");
+  const [assignmentSearch, setAssignmentSearch] = useState("");
+  const assignmentTriggerRef = useRef(null);
+  const assignmentCloseRef = useRef(null);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
 
   // 3. Complaints State
   const [complaints, setComplaints] = useState([]);
@@ -112,7 +121,7 @@ export const StudentDashboard = () => {
       ]);
       setGroupAssignments(assigns);
       setGroupAnnouncements(annos);
-        } catch (err) {
+    } catch (err) {
       console.error("Error fetching group content:", err);
       setError(err.message || "Failed to load group assignments");
     }
@@ -229,35 +238,81 @@ export const StudentDashboard = () => {
     if (activeTab === "contact") fetchContactData();
   }, [activeTab, teacherStream]);
 
+  useEffect(() => {
+    if (!selectedAssignment) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setSelectedAssignment(null);
+    };
+    const previousOverflow = document.body.style.overflow;
+    const previousActiveElement = document.activeElement;
+    document.body.style.overflow = "hidden";
+    assignmentCloseRef.current?.focus();
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+      if (previousActiveElement instanceof HTMLElement) {
+        previousActiveElement.focus();
+      }
+    };
+  }, [selectedAssignment]);
+
   // Realtime events
   useEffect(() => {
-    if (activeTab !== 'assignments' && !(activeTab === 'groups' && activeGroupDetail)) return;
+    if (
+      activeTab !== "assignments" &&
+      !(activeTab === "groups" && activeGroupDetail)
+    )
+      return;
     let cancelled = false;
     let running = false;
     async function refreshAssignments() {
-      if (running || document.visibilityState === 'hidden') return;
+      if (running || document.visibilityState === "hidden") return;
       running = true;
       try {
-        const result = activeTab === 'assignments'
-          ? await api.student.getAssignments()
-          : await api.student.getGroupAssignments(activeGroupDetail.id);
+        const result =
+          activeTab === "assignments"
+            ? await api.student.getAssignments()
+            : await api.student.getGroupAssignments(activeGroupDetail.id);
         if (!cancelled) {
-          if (activeTab === 'assignments') setAllAssignments(result);
+          if (activeTab === "assignments") setAllAssignments(result);
           else setGroupAssignments(result);
         }
       } catch (err) {
-        if (!cancelled) setError(err.message || 'Could not refresh assignments');
-      } finally { running = false; }
+        if (!cancelled)
+          setError(err.message || "Could not refresh assignments");
+      } finally {
+        running = false;
+      }
     }
     const timer = setInterval(refreshAssignments, 15000);
-    window.addEventListener('focus', refreshAssignments);
-    return () => { cancelled = true; clearInterval(timer); window.removeEventListener('focus', refreshAssignments); };
+    window.addEventListener("focus", refreshAssignments);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      window.removeEventListener("focus", refreshAssignments);
+    };
   }, [activeTab, activeGroupDetail?.id]);
 
   useEffect(() => {
     if (!lastEvent) return;
     if (lastEvent.table === "assignments" && activeTab === "assignments") {
       fetchAllAssignments();
+    }
+    if (
+      lastEvent.table === "group_members" &&
+      (activeTab === "assignments" || activeTab === "groups")
+    ) {
+      if (activeTab === "assignments") fetchAllAssignments();
+      if (activeTab === "groups") {
+        fetchGroups();
+        if (
+          activeGroupDetail &&
+          lastEvent.record?.group_id === activeGroupDetail.id
+        ) {
+          fetchGroupContent(activeGroupDetail.id);
+        }
+      }
     }
     if (lastEvent.table === "complaints" && activeTab === "complaints") {
       fetchComplaints();
@@ -275,10 +330,10 @@ export const StudentDashboard = () => {
         .then(setChatThread)
         .catch(console.error);
     }
-    if (lastEvent.table === "groups") {
-      if (activeTab === "groups") fetchGroups();
+    if (lastEvent.table === "groups" && activeTab === "groups") {
+      fetchGroups();
     }
-  }, [lastEvent]);
+  }, [lastEvent, activeTab, activeGroupDetail?.id]);
 
   // Create complaint
   const handleCreateComplaint = async (e) => {
@@ -310,12 +365,94 @@ export const StudentDashboard = () => {
   const upcomingAssignments = allAssignments.filter(
     (a) => a.due_date && new Date(a.due_date) > now,
   );
+  const assignmentStatus = (assignment) => {
+    if (assignment.submission) return { label: "Submitted", tone: "submitted" };
+    if (assignment.due_date && new Date(assignment.due_date) <= now) {
+      return { label: "Overdue", tone: "overdue" };
+    }
+    if (
+      assignment.due_date &&
+      new Date(assignment.due_date).getTime() - now.getTime() <= 7 * 86400000
+    ) {
+      return { label: "Due soon", tone: "upcoming" };
+    }
+    return { label: "Open", tone: "open" };
+  };
+  const assignmentSource = (assignment) => {
+    if (
+      assignment.publication_scope === "all_students" &&
+      !assignment.group_id
+    ) {
+      return "All Students";
+    }
+    const groupName = assignment.group?.group_name;
+    const course = assignment.teacher?.department || assignment.teacher?.stream;
+    return [groupName, course].filter(Boolean).join(" · ") || "Enrolled Group";
+  };
+  const assignmentGroupLabel = (assignment) => {
+    if (
+      assignment.publication_scope === "all_students" &&
+      !assignment.group_id
+    ) {
+      return "ALL STUDENTS";
+    }
+    return (
+      assignment.group?.group_name ||
+      activeGroupDetail?.group_name ||
+      "Group name unavailable"
+    );
+  };
+  const assignmentMatchesFilter = (assignment) => {
+    const status = assignmentStatus(assignment);
+    if (assignmentFilter === "overdue") return status.tone === "overdue";
+    if (assignmentFilter === "upcoming")
+      return status.tone === "upcoming" || status.tone === "open";
+    if (assignmentFilter === "submitted") return status.tone === "submitted";
+    return true;
+  };
+  const normalizedSearch = assignmentSearch.trim().toLowerCase();
+  const visibleAssignments = allAssignments.filter((assignment) => {
+    if (!assignmentMatchesFilter(assignment)) return false;
+    if (!normalizedSearch) return true;
+    return [
+      assignment.title,
+      assignment.description,
+      assignmentGroupLabel(assignment),
+      assignment.teacher?.name,
+      assignment.teacher?.department,
+    ]
+      .filter(Boolean)
+      .some((value) => value.toLowerCase().includes(normalizedSearch));
+  });
+  const submittedAssignmentCount = allAssignments.filter(
+    (assignment) => assignment.submission,
+  ).length;
+  const calendarDays = (() => {
+    const firstDay = new Date(calendarMonth);
+    const start = new Date(firstDay);
+    start.setDate(1 - ((firstDay.getDay() + 6) % 7));
+    return Array.from({ length: 42 }, (_, index) => {
+      const date = new Date(start);
+      date.setDate(start.getDate() + index);
+      const key = date.toISOString().slice(0, 10);
+      return {
+        date,
+        key,
+        assignments: allAssignments.filter(
+          (assignment) => assignment.due_date?.slice(0, 10) === key,
+        ),
+      };
+    });
+  })();
 
   const handleAssignmentSubmitted = (assignmentId, submission) => {
-    const update = list => list.map(a => a.id === assignmentId ? { ...a, submission } : a);
+    const update = (list) =>
+      list.map((a) => (a.id === assignmentId ? { ...a, submission } : a));
     setAllAssignments(update);
     setGroupAssignments(update);
-    notify('Assignment submitted successfully! Your teacher can now view your PDF.');
+    notify(
+      "Assignment submitted successfully! Your teacher can now view your PDF.",
+    );
   };
 
   return (
@@ -335,6 +472,7 @@ export const StudentDashboard = () => {
         <div className="page-header" style={{ marginBottom: "1.5rem" }}>
           <div>
             <div
+              className="assignment-overdue-items"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -595,6 +733,7 @@ export const StudentDashboard = () => {
                   </div>
                 ) : (
                   <div
+                    className="assignment-grid-scroll"
                     style={{
                       display: "grid",
                       gridTemplateColumns:
@@ -906,7 +1045,13 @@ export const StudentDashboard = () => {
                                 </a>
                               </div>
                             )}
-                            <StudentAssignmentSubmission assignment={a} onSubmitted={handleAssignmentSubmitted} onRefresh={() => fetchGroupContent(activeGroupDetail.id)} />
+                            <StudentAssignmentSubmission
+                              assignment={a}
+                              onSubmitted={handleAssignmentSubmitted}
+                              onRefresh={() =>
+                                fetchGroupContent(activeGroupDetail.id)
+                              }
+                            />
                           </div>
                         ))}
                       </div>
@@ -989,6 +1134,7 @@ export const StudentDashboard = () => {
         {/* ========================================================================= */}
         {activeTab === "assignments" && (
           <div
+            className="assignments-deadlines-layout"
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 320px",
@@ -1036,8 +1182,9 @@ export const StudentDashboard = () => {
                     style={{ fontSize: "0.85rem", color: "#574A24", margin: 0 }}
                   >
                     The following assignments have passed their official due
-                    dates. Coordinate with your instructor immediately.
-                    These assignments were not submitted before the deadline. Submission is now closed.
+                    dates. Coordinate with your instructor immediately. These
+                    assignments were not submitted before the deadline.
+                    Submission is now closed.
                   </p>
 
                   <div
@@ -1102,8 +1249,60 @@ export const StudentDashboard = () => {
                 <p style={{ fontSize: "0.85rem", color: "#574A24" }}>
                   Assignments published to your enrolled cohorts. Submit
                   solutions before the designated deadlines.
-                  View your cohort and general assignments. Submit your answer PDF before the deadline.
                 </p>
+                <div
+                  className="assignment-summary"
+                  aria-label="Assignment summary"
+                >
+                  <span>
+                    <strong>{allAssignments.length}</strong> visible
+                  </span>
+                  <span className="summary-overdue">
+                    <strong>{overdueAssignments.length}</strong> overdue
+                  </span>
+                  <span className="summary-upcoming">
+                    <strong>{upcomingAssignments.length}</strong> upcoming
+                  </span>
+                  <span className="summary-submitted">
+                    <strong>{submittedAssignmentCount}</strong> submitted
+                  </span>
+                </div>
+                <div className="assignment-toolbar">
+                  <div
+                    className="assignment-filters"
+                    role="group"
+                    aria-label="Filter assignments"
+                  >
+                    {[
+                      ["all", "All"],
+                      ["overdue", "Overdue"],
+                      ["upcoming", "Upcoming"],
+                      ["submitted", "Submitted"],
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={
+                          assignmentFilter === value ? "is-active" : ""
+                        }
+                        onClick={() => setAssignmentFilter(value)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <label className="assignment-search">
+                    <Search size={15} aria-hidden="true" />
+                    <span className="sr-only">Search assignments</span>
+                    <input
+                      value={assignmentSearch}
+                      onChange={(event) =>
+                        setAssignmentSearch(event.target.value)
+                      }
+                      placeholder="Search assignments"
+                    />
+                  </label>
+                </div>
               </div>
 
               {loading ? (
@@ -1129,19 +1328,35 @@ export const StudentDashboard = () => {
                 >
                   No assignments are available yet.
                 </div>
+              ) : visibleAssignments.length === 0 ? (
+                <div className="assignment-empty-filter">
+                  No assignments match this filter.
+                </div>
               ) : (
                 <div
                   style={{
-                    display: "flex",
-                    flexDirection: "column",
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(min(100%, 300px), 1fr))",
                     gap: "1rem",
                   }}
                 >
-                  {allAssignments.map((a) => (
+                  {visibleAssignments.map((a) => (
                     <div
                       key={a.id}
-                      className="glass-card"
-                      style={{ display: "flex", flexDirection: "column" }}
+                      className={`assignment-card assignment-card-${assignmentStatus(a).tone}`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={(event) => {
+                        assignmentTriggerRef.current = event.currentTarget;
+                        setSelectedAssignment(a);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setSelectedAssignment(a);
+                        }
+                      }}
                     >
                       <div
                         style={{
@@ -1151,45 +1366,48 @@ export const StudentDashboard = () => {
                           marginBottom: "0.5rem",
                         }}
                       >
-                        <h3
-                          style={{
-                            fontSize: "1.1rem",
-                            color: "#3E341A",
-                            fontWeight: 700,
-                          }}
+                        <div>
+                          <div className="assignment-source">
+                            {assignmentGroupLabel(a)}
+                          </div>
+                          <h3 className="assignment-card-title">{a.title}</h3>
+                        </div>
+                        <span
+                          className={`assignment-status ${assignmentStatus(a).tone}`}
                         >
-                          {a.title}
-                        </h3>
-                        {a.due_date && (
-                          <span
-                            style={{
-                              fontSize: "0.72rem",
-                              fontWeight: 700,
-                              padding: "0.2rem 0.55rem",
-                              borderRadius: "6px",
-                              background: "rgba(87, 74, 36, 0.12)",
-                              color: "#3E341A",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "0.3rem",
-                            }}
-                          >
-                            <Clock size={11} /> DUE:{" "}
-                            {new Date(a.due_date).toLocaleString()}
-                          </span>
-                        )}
+                          {assignmentStatus(a).label}
+                        </span>
                       </div>
 
-                      <p
-                        style={{
-                          fontSize: "0.88rem",
-                          color: "#574A24",
-                          lineHeight: 1.5,
-                          marginBottom: "1rem",
-                        }}
-                      >
+                      <p className="assignment-card-description">
                         {a.description}
                       </p>
+                      {(a.title.length > 52 ||
+                        a.description.length > 130 ||
+                        a.file_url) && (
+                        <button
+                          type="button"
+                          className="assignment-read-more"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            assignmentTriggerRef.current = event.currentTarget;
+                            setSelectedAssignment(a);
+                          }}
+                        >
+                          Read more <ArrowRight size={13} aria-hidden="true" />
+                        </button>
+                      )}
+                      <div className="assignment-card-meta">
+                        <span>
+                          <Clock size={13} />{" "}
+                          {a.due_date
+                            ? new Date(a.due_date).toLocaleString()
+                            : "No deadline"}
+                        </span>
+                        <span>
+                          <User size={13} /> {a.teacher?.name || "Faculty"}
+                        </span>
+                      </div>
 
                       <div
                         style={{
@@ -1202,7 +1420,7 @@ export const StudentDashboard = () => {
                         }}
                       >
                         <span style={{ fontSize: "0.75rem", color: "#80775C" }}>
-                          Instructor: {a.teacher?.name || "Faculty"}
+                          Source: {assignmentSource(a)}
                         </span>
 
                         {a.file_url && (
@@ -1210,6 +1428,7 @@ export const StudentDashboard = () => {
                             href={a.file_url}
                             target="_blank"
                             rel="noreferrer"
+                            onClick={(event) => event.stopPropagation()}
                             style={{
                               display: "flex",
                               alignItems: "center",
@@ -1224,7 +1443,13 @@ export const StudentDashboard = () => {
                           </a>
                         )}
                       </div>
-                      <StudentAssignmentSubmission assignment={a} onSubmitted={handleAssignmentSubmitted} onRefresh={fetchAllAssignments} />
+                      <div onClick={(event) => event.stopPropagation()}>
+                        <StudentAssignmentSubmission
+                          assignment={a}
+                          onSubmitted={handleAssignmentSubmitted}
+                          onRefresh={fetchAllAssignments}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1266,64 +1491,67 @@ export const StudentDashboard = () => {
                 </h3>
               </div>
 
-              {/* Month/Week mini grid */}
-              <div style={{ marginBottom: "1rem" }}>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(5, 1fr)",
-                    gap: "0.3rem",
-                    textAlign: "center",
-                    fontSize: "0.70rem",
-                    fontWeight: 800,
-                    color: "#3E341A",
-                    marginBottom: "0.4rem",
-                  }}
-                >
-                  <div>MON</div>
-                  <div>TUE</div>
-                  <div>WED</div>
-                  <div>THU</div>
-                  <div>FRI</div>
+              <div className="deadline-calendar">
+                <div className="deadline-calendar-header">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCalendarMonth(
+                        new Date(
+                          calendarMonth.getFullYear(),
+                          calendarMonth.getMonth() - 1,
+                          1,
+                        ),
+                      )
+                    }
+                    aria-label="Previous month"
+                  >
+                    ‹
+                  </button>
+                  <strong>
+                    {calendarMonth.toLocaleDateString(undefined, {
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </strong>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCalendarMonth(
+                        new Date(
+                          calendarMonth.getFullYear(),
+                          calendarMonth.getMonth() + 1,
+                          1,
+                        ),
+                      )
+                    }
+                    aria-label="Next month"
+                  >
+                    ›
+                  </button>
                 </div>
-
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(5, 1fr)",
-                    gap: "0.3rem",
-                  }}
-                >
-                  {["Mon", "Tue", "Wed", "Thu", "Fri"].map((day, idx) => {
-                    const hasDeadline = allAssignments.some((a) => {
-                      if (!a.due_date) return false;
-                      const d = new Date(a.due_date);
-                      return d.getDay() === idx + 1;
-                    });
-                    return (
-                      <div
-                        key={day}
-                        style={{
-                          height: "32px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          borderRadius: "6px",
-                          background: hasDeadline
-                            ? "linear-gradient(135deg, #574A24, #3E341A)"
-                            : "rgba(203, 189, 147, 0.20)",
-                          color: hasDeadline ? "#FAE8B4" : "#3E341A",
-                          fontWeight: 800,
-                          fontSize: "0.75rem",
-                          border: hasDeadline
-                            ? "1px solid #3E341A"
-                            : "1px solid rgba(203, 189, 147, 0.40)",
-                        }}
-                      >
-                        {day}
-                      </div>
-                    );
-                  })}
+                <div className="deadline-calendar-weekdays">
+                  {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(
+                    (day) => (
+                      <span key={day}>{day}</span>
+                    ),
+                  )}
+                </div>
+                <div className="deadline-calendar-grid">
+                  {calendarDays.map(({ date, key, assignments }) => (
+                    <div
+                      key={key}
+                      className={`deadline-calendar-day ${date.getMonth() !== calendarMonth.getMonth() ? "is-muted" : ""} ${assignments.length ? "has-deadline" : ""}`}
+                      title={
+                        assignments.map((a) => a.title).join(", ") || undefined
+                      }
+                    >
+                      {date.getDate()}
+                      {assignments.length > 0 && (
+                        <small>{assignments.length}</small>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -1348,7 +1576,7 @@ export const StudentDashboard = () => {
                   overflowY: "auto",
                 }}
               >
-                {allAssignments.length === 0 ? (
+                {upcomingAssignments.length === 0 ? (
                   <div
                     style={{
                       fontSize: "0.75rem",
@@ -1360,7 +1588,7 @@ export const StudentDashboard = () => {
                     No assignment deadlines recorded.
                   </div>
                 ) : (
-                  allAssignments.slice(0, 5).map((a) => (
+                  upcomingAssignments.slice(0, 5).map((a) => (
                     <div
                       key={a.id}
                       style={{
@@ -2044,6 +2272,101 @@ export const StudentDashboard = () => {
           </div>
         )}
       </main>
+
+      {selectedAssignment && (
+        <div
+          className="assignment-modal-overlay"
+          role="presentation"
+          onClick={() => setSelectedAssignment(null)}
+        >
+          <section
+            className="assignment-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="assignment-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="assignment-modal-header">
+              <div>
+                <span className="assignment-modal-kicker">
+                  {assignmentGroupLabel(selectedAssignment)}
+                </span>
+                <h2 id="assignment-modal-title">{selectedAssignment.title}</h2>
+              </div>
+              <button
+                type="button"
+                className="assignment-modal-close"
+                ref={assignmentCloseRef}
+                onClick={() => setSelectedAssignment(null)}
+                aria-label="Close assignment details"
+              >
+                <X size={20} />
+              </button>
+            </header>
+            <div className="assignment-modal-body">
+              <div className="assignment-modal-badges">
+                <span
+                  className={`assignment-status ${assignmentStatus(selectedAssignment).tone}`}
+                >
+                  {assignmentStatus(selectedAssignment).label}
+                </span>
+                <span className="assignment-modal-scope">
+                  {assignmentSource(selectedAssignment)}
+                </span>
+              </div>
+              <p className="assignment-modal-description">
+                {selectedAssignment.description}
+              </p>
+              <dl className="assignment-modal-details">
+                <div>
+                  <dt>Due date</dt>
+                  <dd>
+                    {selectedAssignment.due_date
+                      ? new Date(selectedAssignment.due_date).toLocaleString()
+                      : "No deadline"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Instructor</dt>
+                  <dd>{selectedAssignment.teacher?.name || "Faculty"}</dd>
+                </div>
+                <div>
+                  <dt>Publication scope</dt>
+                  <dd>
+                    {selectedAssignment.publication_scope === "all_students"
+                      ? "All eligible students"
+                      : `Group: ${assignmentGroupLabel(selectedAssignment)}`}
+                  </dd>
+                </div>
+              </dl>
+              {selectedAssignment.file_url && (
+                <a
+                  className="assignment-modal-download"
+                  href={selectedAssignment.file_url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Download size={16} /> Download assignment handout
+                </a>
+              )}
+              <div className="assignment-modal-submission">
+                <StudentAssignmentSubmission
+                  assignment={selectedAssignment}
+                  onSubmitted={(assignmentId, submission) => {
+                    handleAssignmentSubmitted(assignmentId, submission);
+                    setSelectedAssignment((current) =>
+                      current?.id === assignmentId
+                        ? { ...current, submission }
+                        : current,
+                    );
+                  }}
+                  onRefresh={fetchAllAssignments}
+                />
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* MODAL: SUBMIT COMPLAINT                                                   */}

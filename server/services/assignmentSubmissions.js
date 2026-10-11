@@ -26,11 +26,8 @@ export function validateAssignmentId(req, res, next) {
 }
 
 async function studentAssignment(assignmentId, studentId) {
-  const assignment = await db.assignments.getById(assignmentId);
+  const assignment = await db.assignments.getForStudent(studentId, assignmentId);
   if (!assignment) throw submissionError(404, 'Assignment not found.');
-  if (assignment.group_id && !await db.groups.isMember(assignment.group_id, studentId)) {
-    throw submissionError(403, 'You are not a member of this group.');
-  }
   return assignment;
 }
 
@@ -133,8 +130,7 @@ export async function getSubmissionFile(req, res) {
   try {
     const studentId = req.user.role === 'student' ? req.user.id : req.params.studentId;
     if (req.user.role === 'student') {
-      // A student retains access to their own submitted work even after leaving a group.
-      if (!await db.assignments.getById(req.params.id)) throw submissionError(404, 'Assignment not found.');
+      await studentAssignment(req.params.id, studentId);
     } else {
       await teacherAssignment(req.params.id, req.user.id);
     }

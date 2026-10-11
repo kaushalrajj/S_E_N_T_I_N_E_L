@@ -317,8 +317,11 @@ export const AdminDashboard = () => {
               gap: "1rem",
             }}
           >
-            <h2 style={{ fontSize: "1.25rem", color: "var(--text-primary)" }}>
+            <h2 className="admin-grievance-heading">
               Grievance Records
+              <span className="admin-grievance-count">
+                {loading ? "Loading…" : `${complaints.length} visible`}
+              </span>
             </h2>
 
             <div
@@ -550,27 +553,6 @@ export const AdminDashboard = () => {
                             <span>Assign</span>
                           </button>
 
-                          {/* Quick Status Toggle */}
-                          <select
-                            value={c.status}
-                            onChange={(e) =>
-                              handleUpdateStatus(c.id, e.target.value)
-                            }
-                            disabled={actionLoading}
-                            style={{
-                              padding: "0.35rem 0.6rem",
-                              background: "rgba(250, 232, 180, 0.60)",
-                              color: "#3E341A",
-                              border: "1px solid rgba(203, 189, 147, 0.50)",
-                              borderRadius: "6px",
-                              fontSize: "0.8rem",
-                              cursor: "pointer",
-                            }}
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="assigned">Assigned</option>
-                            <option value="resolved">Resolved</option>
-                          </select>
                         </div>
                       </td>
                     </tr>

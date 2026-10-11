@@ -258,16 +258,6 @@ router.post(
         due_date: due_date || null,
       });
 
-      broadcastEvent("assignments", "INSERT", {
-        ...newAssignment,
-        teacher: {
-          id: req.user.id,
-          name: req.user.name,
-          email: req.user.email,
-          department: req.user.department,
-        },
-      });
-
       res
         .status(201)
         .json({
@@ -374,21 +364,11 @@ router.post('/assignments', upload.single('file'), validateAssignmentDeadline, (
     const newAssignment = await db.assignments.create({
       teacherId: getTeacherId(req),
       groupId: group_id || null,
+      publicationScope: group_id ? 'group' : 'all_students',
       title: title.trim(),
       description: description.trim(),
       file_url: resolvedFileUrl || null,
       due_date: due_date || null,
-    });
-
-    // Broadcast realtime event
-    broadcastEvent("assignments", "INSERT", {
-      ...newAssignment,
-      teacher: {
-        id: req.user.id,
-        name: req.user.name,
-        email: req.user.email,
-        department: req.user.department,
-      },
     });
 
     res

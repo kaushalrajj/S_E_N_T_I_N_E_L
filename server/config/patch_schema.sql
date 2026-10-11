@@ -12,9 +12,23 @@ ALTER TABLE public.users
 -- 2. Add missing columns to assignments table
 ALTER TABLE public.assignments 
   ADD COLUMN IF NOT EXISTS group_id UUID REFERENCES public.groups(id) ON DELETE CASCADE,
-  ADD COLUMN IF NOT EXISTS due_date TIMESTAMP WITH TIME ZONE;
+  ADD COLUMN IF NOT EXISTS due_date TIMESTAMP WITH TIME ZONE,
+  ADD COLUMN IF NOT EXISTS publication_scope VARCHAR(20) NOT NULL DEFAULT 'group';
+
+UPDATE public.assignments
+SET publication_scope = CASE
+  WHEN group_id IS NULL THEN 'group'
+  ELSE 'group'
+END
+WHERE publication_scope IS NULL;
+
+ALTER TABLE public.assignments
+  DROP CONSTRAINT IF EXISTS assignments_publication_scope_check,
+  ADD CONSTRAINT assignments_publication_scope_check
+    CHECK (publication_scope IN ('group', 'all_students'));
 
 CREATE INDEX IF NOT EXISTS idx_assignments_group ON public.assignments(group_id);
+CREATE INDEX IF NOT EXISTS idx_assignments_publication_scope ON public.assignments(publication_scope);
 
 -- 3. Add sender_role column to messages table
 ALTER TABLE public.messages 

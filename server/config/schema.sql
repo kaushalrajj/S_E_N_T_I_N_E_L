@@ -74,6 +74,8 @@ CREATE TABLE IF NOT EXISTS public.assignments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     teacher_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     group_id UUID REFERENCES public.groups(id) ON DELETE CASCADE,
+    publication_scope VARCHAR(20) NOT NULL DEFAULT 'group'
+      CHECK (publication_scope IN ('group', 'all_students')),
     title VARCHAR(255) NOT NULL,
     description TEXT NOT NULL,
     file_url TEXT,
@@ -123,6 +125,7 @@ CREATE INDEX IF NOT EXISTS idx_group_members_group ON public.group_members(group
 CREATE INDEX IF NOT EXISTS idx_group_members_student ON public.group_members(student_id);
 CREATE INDEX IF NOT EXISTS idx_assignments_teacher ON public.assignments(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_assignments_group ON public.assignments(group_id);
+CREATE INDEX IF NOT EXISTS idx_assignments_publication_scope ON public.assignments(publication_scope);
 CREATE INDEX IF NOT EXISTS idx_announcements_group ON public.announcements(group_id);
 CREATE INDEX IF NOT EXISTS idx_marks_student ON public.marks(student_id);
 CREATE INDEX IF NOT EXISTS idx_messages_student ON public.messages(student_id);
