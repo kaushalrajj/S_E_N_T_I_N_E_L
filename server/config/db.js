@@ -35,54 +35,62 @@ export const schemaCapabilities = {
   probed: false,
 };
 
+let probePromise = null;
+
 export async function probeSchema() {
   if (!isSupabaseConfigured || !supabase) {
     schemaCapabilities.probed = true;
     return schemaCapabilities;
   }
+  if (probePromise) return probePromise;
 
-  try {
-    const { error: errA } = await supabase
-      .from("assignments")
-      .select("group_id")
-      .limit(1);
-    schemaCapabilities.hasAssignmentGroupId = !errA;
+  probePromise = (async () => {
+    try {
+      const { error: errA } = await supabase
+        .from("assignments")
+        .select("group_id")
+        .limit(1);
+      schemaCapabilities.hasAssignmentGroupId = !errA;
 
-    const { error: errD } = await supabase
-      .from("assignments")
-      .select("due_date")
-      .limit(1);
-    schemaCapabilities.hasAssignmentDueDate = !errD;
+      const { error: errD } = await supabase
+        .from("assignments")
+        .select("due_date")
+        .limit(1);
+      schemaCapabilities.hasAssignmentDueDate = !errD;
 
-    const { error: errP } = await supabase
-      .from("assignments")
-      .select("publication_scope")
-      .limit(1);
-    schemaCapabilities.hasAssignmentPublicationScope = !errP;
+      const { error: errP } = await supabase
+        .from("assignments")
+        .select("publication_scope")
+        .limit(1);
+      schemaCapabilities.hasAssignmentPublicationScope = !errP;
 
-    const { error: errM } = await supabase
-      .from("messages")
-      .select("sender_role")
-      .limit(1);
-    schemaCapabilities.hasMessageSenderRole = !errM;
+      const { error: errM } = await supabase
+        .from("messages")
+        .select("sender_role")
+        .limit(1);
+      schemaCapabilities.hasMessageSenderRole = !errM;
 
-    const { error: errAnn } = await supabase
-      .from("announcements")
-      .select("*")
-      .limit(1);
-    schemaCapabilities.hasAnnouncementsTable =
-      !errAnn || errAnn.code !== "PGRST205";
+      const { error: errAnn } = await supabase
+        .from("announcements")
+        .select("*")
+        .limit(1);
+      schemaCapabilities.hasAnnouncementsTable =
+        !errAnn || errAnn.code !== "PGRST205";
 
-    schemaCapabilities.probed = true;
-  } catch (probeErr) {
-    console.warn("⚠️ Schema probe notice:", probeErr.message);
-  }
-  return schemaCapabilities;
+      schemaCapabilities.probed = true;
+    } catch (probeErr) {
+      console.warn("⚠️ Schema probe notice:", probeErr.message);
+    }
+    return schemaCapabilities;
+  })();
+
+  return probePromise;
 }
 
 if (isSupabaseConfigured) {
-  probeSchema();
-  console.log("⚡ Supabase database configured");
+  probeSchema().then(() => {
+    console.log("⚡ Supabase database configured & schema capabilities probed");
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -312,9 +320,8 @@ function formatAssignmentRecord(a) {
   let cleanDescription = a.description || "";
   let groupId = a.group_id || null;
   let dueDate = a.due_date || null;
-  const publicationScope = a.publication_scope === "all_students"
-    ? "all_students"
-    : "group";
+  let publicationScope =
+    a.publication_scope === "all_students" ? "all_students" : "group";
 
   const metaMatch = cleanDescription.match(/<!--META:(.*?)-->/);
   if (metaMatch) {
@@ -322,6 +329,11 @@ function formatAssignmentRecord(a) {
       const meta = JSON.parse(metaMatch[1]);
       if (meta.group_id && !groupId) groupId = meta.group_id;
       if (meta.due_date && !dueDate) dueDate = meta.due_date;
+      if (meta.publication_scope === "all_students") {
+        publicationScope = "all_students";
+      } else if (meta.publication_scope === "group") {
+        publicationScope = "group";
+      }
       cleanDescription = cleanDescription.replace(metaMatch[0], "").trim();
     } catch (_) {}
   }
@@ -1069,8 +1081,7 @@ export const db = {
           .eq('student_id', studentId);
         if (membershipError) throw membershipError;
 
-        const groupIds = memberships.map((membership) => membership.group_id);
-        if (groupIds.length === 0) return null;
+        const groupIds = (memberships || []).map((membership) => membership.group_id).filter(Boolean);
 
         const { data, error } = await supabase
           .from('assignments')
@@ -1086,14 +1097,16 @@ export const db = {
 
       const assignment = inMemoryData.assignments.find((item) => item.id === assignmentId);
       if (!assignment) return null;
-      const isMember = (assignment.publication_scope === 'all_students' && !assignment.group_id) ||
-        inMemoryData.groupMembers.some(
+      const formatted = formatAssignmentRecord(assignment);
+      if (!formatted) return null;
+      if (formatted.publication_scope === 'all_students' && !formatted.group_id) return formatted;
+      const isMember = inMemoryData.groupMembers.some(
         (membership) =>
           membership.student_id === studentId &&
-          assignment.group_id === membership.group_id,
+          formatted.group_id === membership.group_id,
       );
       return isMember
-        ? formatAssignmentRecord(assignment)
+        ? formatted
         : null;
     },
 
@@ -1140,11 +1153,11 @@ export const db = {
 
     async getByGroup(groupId) {
       if (isSupabaseConfigured && supabase) {
-        const { data, error } = await supabase
-          .from("assignments")
-          .select("*")
-          .eq("group_id", groupId)
-          .order("created_at", { ascending: false });
+        let query = supabase.from("assignments").select("*");
+        if (schemaCapabilities.hasAssignmentGroupId) {
+          query = query.eq("group_id", groupId);
+        }
+        const { data, error } = await query.order("created_at", { ascending: false });
         if (error) throw error;
         const groupResult = await supabase
           .from("groups")
@@ -1158,11 +1171,14 @@ export const db = {
           : { data: [] };
         if (teacherResult.error) throw teacherResult.error;
         const teacherById = new Map((teacherResult.data || []).map((teacher) => [teacher.id, teacher]));
-        return (data || []).map(formatAssignmentRecord).map((assignment) => ({
-          ...assignment,
-          group: groupResult.data || null,
-          teacher: teacherById.get(assignment.teacher_id) || null,
-        }));
+        return (data || [])
+          .map(formatAssignmentRecord)
+          .filter((assignment) => assignment.group_id === groupId)
+          .map((assignment) => ({
+            ...assignment,
+            group: groupResult.data || null,
+            teacher: teacherById.get(assignment.teacher_id) || null,
+          }));
       }
       const group = inMemoryData.groups.find((item) => item.id === groupId) || null;
       return inMemoryData.assignments
@@ -1191,9 +1207,9 @@ export const db = {
             ? query.or(`group_id.in.(${groupIds.join(",")}),and(publication_scope.eq.all_students,group_id.is.null)`)
             : query.eq("publication_scope", "all_students").is("group_id", null);
         } else if (groupIds.length) {
-          query = query.in("group_id", groupIds);
+          query = query.or(`group_id.in.(${groupIds.join(",")}),group_id.is.null`);
         } else {
-          return [];
+          query = query.is("group_id", null);
         }
         const { data, error } = await query.order("created_at", { ascending: false });
         if (error) throw error;
@@ -1255,28 +1271,95 @@ export const db = {
       if (!resolvedTeacherId) {
         throw new Error("Authenticated teacher ID is required to create an assignment");
       }
+
+      if (isSupabaseConfigured && !schemaCapabilities.probed) {
+        await probeSchema();
+      }
+
+      const resolvedGroupId = groupId || null;
+      const resolvedDueDate = due_date || null;
+      const resolvedScope =
+        publicationScope === "all_students" || publication_scope === "all_students"
+          ? "all_students"
+          : "group";
+
+      const metaToEmbed = {};
+      if (!schemaCapabilities.hasAssignmentPublicationScope) {
+        metaToEmbed.publication_scope = resolvedScope;
+      }
+      if (!schemaCapabilities.hasAssignmentGroupId && resolvedGroupId) {
+        metaToEmbed.group_id = resolvedGroupId;
+      }
+      if (!schemaCapabilities.hasAssignmentDueDate && resolvedDueDate) {
+        metaToEmbed.due_date = resolvedDueDate;
+      }
+
+      let storedDescription = (description || "").trim();
+      if (Object.keys(metaToEmbed).length > 0) {
+        storedDescription = `${storedDescription}\n<!--META:${JSON.stringify(metaToEmbed)}-->`.trim();
+      }
+
       const newAssignment = {
         id: uuidv4(),
         teacher_id: resolvedTeacherId,
-        group_id: groupId || null,
-        publication_scope: publicationScope || publication_scope || "group",
-        title,
-        description,
+        title: (title || "").trim(),
+        description: storedDescription,
         file_url: file_url || null,
-        due_date: due_date || null,
         created_at: new Date().toISOString(),
       };
-      if (isSupabaseConfigured && supabase) {
-        const { data, error } = await supabase
-          .from("assignments")
-          .insert([newAssignment])
-          .select()
-          .single();
-        if (error) throw error;
-        return formatAssignmentRecord(data);
+
+      if (schemaCapabilities.hasAssignmentGroupId && resolvedGroupId !== undefined) {
+        newAssignment.group_id = resolvedGroupId;
       }
-      inMemoryData.assignments.unshift(newAssignment);
-      return formatAssignmentRecord(newAssignment);
+      if (schemaCapabilities.hasAssignmentDueDate && resolvedDueDate !== undefined) {
+        newAssignment.due_date = resolvedDueDate;
+      }
+      if (schemaCapabilities.hasAssignmentPublicationScope) {
+        newAssignment.publication_scope = resolvedScope;
+      }
+
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data, error } = await supabase
+            .from("assignments")
+            .insert([newAssignment])
+            .select()
+            .single();
+          if (error) throw error;
+          return formatAssignmentRecord(data);
+        } catch (err) {
+          if (
+            err?.message?.includes("publication_scope") &&
+            newAssignment.publication_scope
+          ) {
+            schemaCapabilities.hasAssignmentPublicationScope = false;
+            delete newAssignment.publication_scope;
+            const fallbackMeta = {
+              ...metaToEmbed,
+              publication_scope: resolvedScope,
+            };
+            newAssignment.description = `${(description || "").trim()}\n<!--META:${JSON.stringify(fallbackMeta)}-->`.trim();
+            const { data: retryData, error: retryError } = await supabase
+              .from("assignments")
+              .insert([newAssignment])
+              .select()
+              .single();
+            if (retryError) throw retryError;
+            return formatAssignmentRecord(retryData);
+          }
+          throw err;
+        }
+      }
+
+      const inMemAssignment = {
+        ...newAssignment,
+        group_id: resolvedGroupId,
+        due_date: resolvedDueDate,
+        publication_scope: resolvedScope,
+        description: (description || "").trim(),
+      };
+      inMemoryData.assignments.unshift(inMemAssignment);
+      return formatAssignmentRecord(inMemAssignment);
     },
   },
 

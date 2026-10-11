@@ -252,6 +252,7 @@ router.post(
       const newAssignment = await db.assignments.create({
         teacherId: getTeacherId(req),
         groupId: req.params.id,
+        publicationScope: "group",
         title: title.trim(),
         description: description.trim(),
         file_url: resolvedFileUrl || null,
