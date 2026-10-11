@@ -7,9 +7,6 @@ import {
   BookOpen,
   LogOut,
   User,
-  Building2,
-  RefreshCw,
-  ChevronDown,
   Home
 } from 'lucide-react';
 
@@ -53,12 +50,7 @@ export const Navbar = () => {
   return (
     <header className="navbar">
       <div className="nav-brand" style={{ cursor: 'pointer' }} onClick={() => navigate(`/${role}/dashboard`)}>
-        <div className="brand-icon" style={{ background: 'linear-gradient(135deg, #574A24 0%, #80775C 100%)' }}>
-          <Building2 size={20} color="#FAE8B4" />
-        </div>
-        <div className="brand-title" style={{ color: '#3E341A', fontWeight: 800 }}>
-          Sentinel
-        </div>
+        <img className="sentinel-logo sentinel-logo-nav" src="/sentinel-logo.png" alt="Sentinel" />
       </div>
 
       <div className="nav-actions">

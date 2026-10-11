@@ -3,7 +3,6 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../api/apiClient";
 import {
-  Building2,
   ShieldAlert,
   GraduationCap,
   BookOpen,
@@ -191,34 +190,7 @@ export const Login = () => {
 
         {/* Brand */}
         <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: "54px",
-              height: "54px",
-              borderRadius: "14px",
-              background: "linear-gradient(135deg, #574A24 0%, #80775C 100%)",
-              boxShadow: "0 4px 16px rgba(87, 74, 36, 0.35)",
-              marginBottom: "1rem",
-              position: "relative",
-            }}
-          >
-            <Building2 size={28} color="#FAE8B4" />
-            <span
-              style={{
-                position: "absolute",
-                top: "-2px",
-                right: "-2px",
-                width: "10px",
-                height: "10px",
-                borderRadius: "50%",
-                background: "#CBBD93",
-                boxShadow: "0 0 8px rgba(203,189,147,0.80)",
-              }}
-            />
-          </div>
+          <img className="sentinel-logo sentinel-logo-auth" src="/sentinel-logo.png" alt="Sentinel" />
           <h1
             style={{
               fontSize: "1.8rem",

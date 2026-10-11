@@ -4,7 +4,6 @@ import { API_BASE_URL } from "../api/apiClient.js";
 import { useRealtime } from "../context/RealtimeContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
-  Building2,
   GraduationCap,
   BookOpen,
   ShieldAlert,
@@ -250,12 +249,7 @@ export const LandingPage = () => {
       <nav className="lp-nav">
         <div className="lp-nav-inner">
           <div className="lp-nav-brand">
-            <div className="lp-brand-icon">
-              <Building2 size={18} color="#fff" />
-            </div>
-            <span>
-              <strong>Sentinel</strong>
-            </span>
+            <img className="sentinel-logo sentinel-logo-landing" src="/sentinel-logo.png" alt="Sentinel" />
           </div>
           <div className="lp-nav-actions">
             <button
@@ -520,8 +514,7 @@ export const LandingPage = () => {
       <footer className="lp-footer">
         <div className="lp-footer-inner">
           <div className="lp-footer-brand">
-            <Building2 size={16} color="#574A24" />
-            <span>Sentinel</span>
+            <img className="sentinel-logo sentinel-logo-footer" src="/sentinel-logo.png" alt="Sentinel" />
           </div>
           <div className="lp-footer-info">
             <span>Helping campus concerns reach the right people.</span>

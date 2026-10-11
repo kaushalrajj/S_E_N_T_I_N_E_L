@@ -1668,6 +1668,192 @@ textarea:focus-visible {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   SENTINEL BRAND POLISH
+═══════════════════════════════════════════════════════════════════ */
+.sentinel-logo {
+  display: block;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.sentinel-logo-nav {
+  width: auto;
+  height: 58px;
+  border-radius: 10px;
+}
+
+.sentinel-logo-landing {
+  width: auto;
+  height: 68px;
+  border-radius: 10px;
+}
+
+.sentinel-logo-footer {
+  width: auto;
+  height: 48px;
+  border-radius: 8px;
+}
+
+.sentinel-logo-auth {
+  width: auto;
+  height: 112px;
+  max-width: 76%;
+  border-radius: 14px;
+  margin: 0 auto 1rem;
+}
+
+body {
+  background:
+    radial-gradient(circle at 8% 0%, rgba(250, 232, 180, 0.72), transparent 27rem),
+    radial-gradient(circle at 100% 100%, rgba(203, 189, 147, 0.28), transparent 30rem),
+    var(--bg-main);
+}
+
+.app-container {
+  position: relative;
+  isolation: isolate;
+  background:
+    linear-gradient(135deg, rgba(255, 251, 240, 0.46), transparent 42%),
+    radial-gradient(circle at 88% 16%, rgba(203, 189, 147, 0.2), transparent 24rem);
+}
+
+.app-container::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.28;
+  background-image: radial-gradient(rgba(87, 74, 36, 0.22) 0.7px, transparent 0.7px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(to bottom, black, transparent 70%);
+}
+
+.navbar {
+  min-height: 64px;
+  background: rgba(255, 251, 240, 0.82);
+  border-bottom-color: rgba(87, 74, 36, 0.13);
+}
+
+.nav-brand {
+  min-width: 0;
+}
+
+.auth-page {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(250, 232, 180, 0.56), transparent 25rem),
+    radial-gradient(circle at 88% 82%, rgba(128, 119, 92, 0.2), transparent 27rem),
+    var(--bg-main);
+}
+
+.auth-page::before {
+  width: 26rem;
+  height: 26rem;
+  top: -8rem;
+  left: -8rem;
+  border-color: rgba(87, 74, 36, 0.13);
+  animation: sentinel-drift 18s ease-in-out infinite alternate;
+}
+
+.auth-page::after {
+  width: 30rem;
+  height: 30rem;
+  right: -12rem;
+  bottom: -14rem;
+  background: radial-gradient(circle, rgba(250, 232, 180, 0.36), transparent 68%);
+  animation: sentinel-drift 22s ease-in-out infinite alternate-reverse;
+}
+
+.auth-card {
+  animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.lp-root {
+  background:
+    radial-gradient(circle at 14% 8%, rgba(250, 232, 180, 0.9), transparent 28rem),
+    radial-gradient(circle at 92% 64%, rgba(203, 189, 147, 0.28), transparent 30rem),
+    var(--c-oatmeal);
+}
+
+.lp-nav {
+  background: rgba(255, 251, 240, 0.78);
+  border-bottom-color: rgba(87, 74, 36, 0.14);
+}
+
+.lp-hero {
+  background:
+    linear-gradient(180deg, rgba(255, 251, 240, 0.2), transparent 72%),
+    radial-gradient(circle at 50% 20%, rgba(255, 255, 255, 0.52), transparent 34rem);
+}
+
+.lp-hero-orb {
+  animation: sentinel-drift 18s ease-in-out infinite alternate;
+}
+
+.lp-orb-blue {
+  animation-delay: -7s;
+}
+
+.lp-orb-palladian {
+  animation-delay: -11s;
+}
+
+.lp-orb-flame {
+  animation-delay: -4s;
+}
+
+.lp-role-panel,
+.lp-activity-feed,
+.lp-cta-card {
+  box-shadow:
+    0 18px 45px rgba(62, 52, 26, 0.1),
+    0 1px 0 rgba(255, 255, 255, 0.82) inset;
+}
+
+@keyframes sentinel-drift {
+  from { transform: translate3d(-8px, -4px, 0) scale(1); }
+  to { transform: translate3d(10px, 8px, 0) scale(1.04); }
+}
+
+@media (max-width: 640px) {
+  .sentinel-logo-nav {
+    height: 52px;
+  }
+
+  .sentinel-logo-landing {
+    height: 58px;
+  }
+
+  .sentinel-logo-auth {
+    height: 96px;
+  }
+
+  .app-container::before {
+    opacity: 0.16;
+    background-size: 22px 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .lp-particles,
+  .lp-hero-orb {
+    display: none;
+  }
+}
+
 @media (max-width: 480px) {
   .student-chat-message {
     max-width: 88% !important;
